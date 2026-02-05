@@ -2,6 +2,7 @@
 
 import type { LintWarning, LinterConfig } from '../shared/types.js';
 import { fix } from '../shared/messages.js';
+import { escapeHtml } from '../shared/html-utils.js';
 
 export class WarningPanel {
   private panel: HTMLElement | null = null;
@@ -192,15 +193,15 @@ export class WarningPanel {
    * Render a single warning item
    */
   private renderWarning(warning: LintWarning, index: number): string {
-    const severityClass = this.escapeHtml(warning.severity.toLowerCase());
-    const ruleName = this.escapeHtml(warning.rule_name || 'rumdl');
+    const severityClass = escapeHtml(warning.severity.toLowerCase());
+    const ruleName = escapeHtml(warning.rule_name || 'rumdl');
     return `
-      <div class="rumdl-warning" data-index="${index}" role="listitem" aria-label="${ruleName}: ${this.escapeHtml(warning.message)}">
+      <div class="rumdl-warning" data-index="${index}" role="listitem" aria-label="${ruleName}: ${escapeHtml(warning.message)}">
         <div class="rumdl-warning-header">
           <span class="rumdl-warning-rule ${severityClass}">${ruleName}</span>
           <span class="rumdl-warning-location">Ln ${warning.line}, Col ${warning.column}</span>
         </div>
-        <div class="rumdl-warning-message">${this.escapeHtml(warning.message)}</div>
+        <div class="rumdl-warning-message">${escapeHtml(warning.message)}</div>
         ${warning.fix ? `<button class="rumdl-btn rumdl-btn-fix-one" data-index="${index}" aria-label="Fix this issue">Fix</button>` : ''}
       </div>
     `;
@@ -292,14 +293,5 @@ export class WarningPanel {
         max-height: 400px;
       `;
     }
-  }
-
-  /**
-   * Escape HTML special characters
-   */
-  private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
   }
 }

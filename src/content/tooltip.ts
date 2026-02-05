@@ -1,6 +1,7 @@
 // Tooltip - rich hover tooltips for lint warnings
 
 import type { LintWarning } from '../shared/types.js';
+import { escapeHtml } from '../shared/html-utils.js';
 
 let tooltip: HTMLElement | null = null;
 let hideTimeout: number | null = null;
@@ -142,13 +143,4 @@ export function destroyTooltip(): void {
     tooltip.remove();
     tooltip = null;
   }
-}
-
-/**
- * Escape HTML special characters
- */
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }

@@ -1,4 +1,4 @@
-.PHONY: all build clean typecheck lint test install package
+.PHONY: all build clean typecheck lint test test-unit test-coverage install package
 
 # Default target
 all: build
@@ -22,8 +22,16 @@ typecheck:
 # Lint TypeScript files (if eslint is configured)
 lint: typecheck
 
-# Run all tests (currently just typecheck)
-test: typecheck
+# Run unit tests
+test-unit:
+	npm run test
+
+# Run tests with coverage
+test-coverage:
+	npm run test:coverage
+
+# Run all tests (typecheck + unit tests)
+test: typecheck test-unit
 
 # Package the extension for distribution
 package:
