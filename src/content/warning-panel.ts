@@ -35,12 +35,7 @@ export class WarningPanel {
           <span class="rumdl-lint-time"></span>
         </span>
         <div class="rumdl-panel-actions">
-          <button class="rumdl-btn rumdl-btn-fix" title="Fix all auto-fixable issues (⌘⇧F)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M12 3v3m6.366-.366-2.12 2.12M21 12h-3m.366 6.366-2.12-2.12M12 21v-3m-6.366.366 2.12-2.12M3 12h3m-.366-6.366 2.12 2.12"/>
-            </svg>
-            Fix All
-          </button>
+          <button class="rumdl-btn rumdl-btn-fix" title="Fix all auto-fixable issues (⌘⇧F)">Fix all</button>
           <button class="rumdl-btn rumdl-btn-close" title="Close panel (⌘⇧L)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -134,11 +129,11 @@ export class WarningPanel {
     if (warnings.length === 0) {
       this.content.innerHTML = `
         <div class="rumdl-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
-            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <svg viewBox="0 0 16 16" width="32" height="32" fill="currentColor">
+            <path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"/>
           </svg>
-          <p>All clear!</p>
-          <span class="rumdl-empty-subtitle">No markdown issues found</span>
+          <p>No issues</p>
+          <span class="rumdl-empty-subtitle">Markdown looks good</span>
         </div>
       `;
       return;

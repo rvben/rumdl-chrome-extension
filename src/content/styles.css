@@ -1,161 +1,95 @@
-/* rumdl Chrome Extension - Beautiful Edition */
+/* rumdl Chrome Extension - GitHub Native Style */
 
 /* ============================================
-   CSS Custom Properties (Design Tokens)
+   CSS Custom Properties - GitHub Primer Colors
    ============================================ */
 :root {
-  /* Brand colors - Catppuccin inspired */
-  --rumdl-brand: #cba6f7;
-  --rumdl-brand-dim: rgba(203, 166, 247, 0.15);
+  /* GitHub's actual color tokens */
+  --color-fg-default: #1f2328;
+  --color-fg-muted: #656d76;
+  --color-fg-subtle: #6e7781;
+  --color-canvas-default: #ffffff;
+  --color-canvas-subtle: #f6f8fa;
+  --color-border-default: #d0d7de;
+  --color-border-muted: #d8dee4;
+  --color-neutral-muted: rgba(175, 184, 193, 0.2);
 
-  /* Semantic colors */
-  --rumdl-error: #f38ba8;
-  --rumdl-error-dim: rgba(243, 139, 168, 0.2);
-  --rumdl-warning: #fab387;
-  --rumdl-warning-dim: rgba(250, 179, 135, 0.2);
-  --rumdl-info: #89b4fa;
-  --rumdl-info-dim: rgba(137, 180, 250, 0.2);
-  --rumdl-success: #a6e3a1;
-  --rumdl-success-dim: rgba(166, 227, 161, 0.2);
-
-  /* Surface colors */
-  --rumdl-surface: #ffffff;
-  --rumdl-surface-elevated: #ffffff;
-  --rumdl-surface-overlay: rgba(255, 255, 255, 0.95);
-  --rumdl-border: rgba(0, 0, 0, 0.1);
-  --rumdl-border-subtle: rgba(0, 0, 0, 0.05);
-
-  /* Text colors */
-  --rumdl-text: #1f2328;
-  --rumdl-text-secondary: #636c76;
-  --rumdl-text-tertiary: #8b949e;
-
-  /* Shadows */
-  --rumdl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --rumdl-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --rumdl-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.15);
-  --rumdl-shadow-glow: 0 0 20px rgba(203, 166, 247, 0.3);
-
-  /* Timing */
-  --rumdl-transition-fast: 0.15s ease;
-  --rumdl-transition-normal: 0.25s ease;
-  --rumdl-transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Semantic colors from GitHub */
+  --color-danger-fg: #cf222e;
+  --color-danger-emphasis: #cf222e;
+  --color-attention-fg: #9a6700;
+  --color-attention-emphasis: #9a6700;
+  --color-accent-fg: #0969da;
+  --color-success-fg: #1a7f37;
+  --color-success-emphasis: #1f883d;
 }
 
-/* Dark mode tokens */
+/* Dark mode - GitHub's dark theme */
 [data-color-mode="dark"],
-[data-dark-theme],
+[data-dark-theme="dark"],
 .dark {
-  --rumdl-surface: #0d1117;
-  --rumdl-surface-elevated: #161b22;
-  --rumdl-surface-overlay: rgba(22, 27, 34, 0.98);
-  --rumdl-border: rgba(255, 255, 255, 0.1);
-  --rumdl-border-subtle: rgba(255, 255, 255, 0.05);
-  --rumdl-text: #e6edf3;
-  --rumdl-text-secondary: #8b949e;
-  --rumdl-text-tertiary: #6e7681;
-  --rumdl-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --color-fg-default: #e6edf3;
+  --color-fg-muted: #8b949e;
+  --color-fg-subtle: #6e7681;
+  --color-canvas-default: #0d1117;
+  --color-canvas-subtle: #161b22;
+  --color-border-default: #30363d;
+  --color-border-muted: #21262d;
+  --color-neutral-muted: rgba(110, 118, 129, 0.4);
+
+  --color-danger-fg: #f85149;
+  --color-danger-emphasis: #da3633;
+  --color-attention-fg: #d29922;
+  --color-attention-emphasis: #bb8009;
+  --color-accent-fg: #58a6ff;
+  --color-success-fg: #3fb950;
+  --color-success-emphasis: #238636;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --rumdl-surface: #0d1117;
-    --rumdl-surface-elevated: #161b22;
-    --rumdl-surface-overlay: rgba(22, 27, 34, 0.98);
-    --rumdl-border: rgba(255, 255, 255, 0.1);
-    --rumdl-border-subtle: rgba(255, 255, 255, 0.05);
-    --rumdl-text: #e6edf3;
-    --rumdl-text-secondary: #8b949e;
-    --rumdl-text-tertiary: #6e7681;
-    --rumdl-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  :root:not([data-color-mode="light"]) {
+    --color-fg-default: #e6edf3;
+    --color-fg-muted: #8b949e;
+    --color-fg-subtle: #6e7681;
+    --color-canvas-default: #0d1117;
+    --color-canvas-subtle: #161b22;
+    --color-border-default: #30363d;
+    --color-border-muted: #21262d;
+    --color-neutral-muted: rgba(110, 118, 129, 0.4);
+
+    --color-danger-fg: #f85149;
+    --color-danger-emphasis: #da3633;
+    --color-attention-fg: #d29922;
+    --color-attention-emphasis: #bb8009;
+    --color-accent-fg: #58a6ff;
+    --color-success-fg: #3fb950;
+    --color-success-emphasis: #238636;
   }
 }
 
 /* ============================================
-   Lint Markers (Wavy Underlines)
-   ============================================ */
-.rumdl-overlay-container {
-  z-index: 1;
-  pointer-events: none;
-}
-
-.rumdl-marker {
-  position: absolute;
-  pointer-events: auto;
-  cursor: help;
-  height: 3px !important;
-  border-radius: 1px;
-  transition: all var(--rumdl-transition-fast);
-  /* Wavy underline effect using gradient */
-  background-size: 6px 3px;
-  background-repeat: repeat-x;
-  background-position: bottom;
-}
-
-.rumdl-marker:hover {
-  filter: brightness(1.2);
-  transform: scaleY(1.5);
-}
-
-.rumdl-marker.rumdl-error {
-  background: linear-gradient(135deg, var(--rumdl-error) 25%, transparent 25%, transparent 50%, var(--rumdl-error) 50%, var(--rumdl-error) 75%, transparent 75%);
-  background-size: 6px 3px;
-}
-
-.rumdl-marker.rumdl-warning {
-  background: linear-gradient(135deg, var(--rumdl-warning) 25%, transparent 25%, transparent 50%, var(--rumdl-warning) 50%, var(--rumdl-warning) 75%, transparent 75%);
-  background-size: 6px 3px;
-}
-
-.rumdl-marker.rumdl-info {
-  background: linear-gradient(135deg, var(--rumdl-info) 25%, transparent 25%, transparent 50%, var(--rumdl-info) 50%, var(--rumdl-info) 75%, transparent 75%);
-  background-size: 6px 3px;
-}
-
-/* ============================================
-   Gutter Markers
-   ============================================ */
-.rumdl-gutter {
-  z-index: 2;
-  pointer-events: none;
-}
-
-.rumdl-gutter-marker {
-  cursor: pointer;
-  pointer-events: auto;
-  transition: all var(--rumdl-transition-fast);
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
-}
-
-.rumdl-gutter-marker:hover {
-  transform: scale(1.3);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-}
-
-/* ============================================
-   Warning Panel - Glass Morphism Design
+   Warning Panel - GitHub Native Style
    ============================================ */
 .rumdl-panel {
-  width: 340px;
-  background: var(--rumdl-surface-overlay);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--rumdl-border);
-  border-radius: 16px;
-  box-shadow: var(--rumdl-shadow-lg), var(--rumdl-shadow-glow);
+  width: 320px;
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
   overflow: hidden;
   z-index: 99999;
   opacity: 0;
-  transform: translateY(12px) scale(0.98);
-  transition: all var(--rumdl-transition-slow);
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
   display: flex;
   flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 14px;
 }
 
 .rumdl-panel.visible {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
 }
 
 /* Panel Header */
@@ -163,107 +97,80 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, var(--rumdl-brand-dim) 0%, transparent 100%);
-  border-bottom: 1px solid var(--rumdl-border-subtle);
-  flex-shrink: 0;
+  padding: 8px 12px;
+  background: var(--color-canvas-subtle);
+  border-bottom: 1px solid var(--color-border-muted);
 }
 
 .rumdl-panel-title {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 14px;
+  gap: 8px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--rumdl-text);
+  color: var(--color-fg-default);
 }
 
 .rumdl-logo {
-  background: linear-gradient(135deg, var(--rumdl-brand) 0%, var(--rumdl-info) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.5px;
+  font-weight: 600;
+  color: var(--color-fg-muted);
 }
 
 .rumdl-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--rumdl-warning) 0%, #f9e2af 100%);
-  color: #1e1e2e;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--color-attention-emphasis);
+  color: #fff;
   font-size: 12px;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(250, 179, 135, 0.4);
+  font-weight: 600;
 }
 
 .rumdl-count.success {
-  background: linear-gradient(135deg, var(--rumdl-success) 0%, #94e2d5 100%);
-  box-shadow: 0 2px 8px rgba(166, 227, 161, 0.4);
+  background: var(--color-success-emphasis);
+}
+
+.rumdl-issues-label {
+  color: var(--color-fg-muted);
+  font-weight: 400;
 }
 
 .rumdl-lint-time {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--rumdl-text-tertiary);
-  background: var(--rumdl-border-subtle);
-  padding: 2px 8px;
-  border-radius: 10px;
+  font-size: 12px;
+  color: var(--color-fg-subtle);
 }
 
 .rumdl-panel-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 /* Panel Content */
 .rumdl-panel-content {
   flex: 1;
   overflow-y: auto;
-  max-height: 400px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--rumdl-border) transparent;
-}
-
-.rumdl-panel-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.rumdl-panel-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.rumdl-panel-content::-webkit-scrollbar-thumb {
-  background: var(--rumdl-border);
-  border-radius: 3px;
-}
-
-.rumdl-panel-content::-webkit-scrollbar-thumb:hover {
-  background: var(--rumdl-text-tertiary);
+  max-height: 360px;
 }
 
 /* Panel Footer */
 .rumdl-panel-footer {
-  padding: 12px 20px;
-  background: var(--rumdl-border-subtle);
-  border-top: 1px solid var(--rumdl-border-subtle);
-  flex-shrink: 0;
+  padding: 8px 12px;
+  background: var(--color-canvas-subtle);
+  border-top: 1px solid var(--color-border-muted);
 }
 
 .rumdl-shortcuts {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 11px;
-  color: var(--rumdl-text-tertiary);
+  font-size: 12px;
+  color: var(--color-fg-muted);
 }
 
 .rumdl-shortcuts span {
@@ -273,26 +180,74 @@
 }
 
 .rumdl-shortcuts kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  background: var(--rumdl-surface);
-  border: 1px solid var(--rumdl-border);
-  border-radius: 5px;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 10px;
-  font-weight: 500;
-  box-shadow: var(--rumdl-shadow-sm);
+  display: inline-block;
+  padding: 2px 5px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1;
+  color: var(--color-fg-muted);
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  box-shadow: inset 0 -1px 0 var(--color-border-default);
 }
 
 /* ============================================
-   Section Headers
+   Buttons - GitHub Style
+   ============================================ */
+.rumdl-btn {
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--color-fg-default);
+  background-color: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: 0.1s ease;
+}
+
+.rumdl-btn:hover:not(:disabled) {
+  background-color: var(--color-neutral-muted);
+}
+
+.rumdl-btn:disabled {
+  color: var(--color-fg-subtle);
+  cursor: not-allowed;
+}
+
+.rumdl-btn-fix {
+  color: #fff;
+  background-color: var(--color-success-emphasis);
+  border-color: var(--color-success-emphasis);
+}
+
+.rumdl-btn-fix:hover:not(:disabled) {
+  background-color: var(--color-success-fg);
+}
+
+.rumdl-btn-close {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-fg-muted);
+  border-radius: 6px;
+}
+
+.rumdl-btn-close:hover {
+  background: var(--color-neutral-muted);
+  color: var(--color-fg-default);
+}
+
+/* ============================================
+   Warning Items
    ============================================ */
 .rumdl-section {
-  border-bottom: 1px solid var(--rumdl-border-subtle);
+  border-bottom: 1px solid var(--color-border-muted);
 }
 
 .rumdl-section:last-child {
@@ -300,201 +255,76 @@
 }
 
 .rumdl-section-title {
-  padding: 12px 20px 8px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.rumdl-section-title::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  padding: 8px 12px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-fg-muted);
 }
 
 .rumdl-section-title.error {
-  color: var(--rumdl-error);
-}
-
-.rumdl-section-title.error::before {
-  background: var(--rumdl-error);
-  box-shadow: 0 0 8px var(--rumdl-error);
+  color: var(--color-danger-fg);
 }
 
 .rumdl-section-title.warning {
-  color: var(--rumdl-warning);
-}
-
-.rumdl-section-title.warning::before {
-  background: var(--rumdl-warning);
-  box-shadow: 0 0 8px var(--rumdl-warning);
+  color: var(--color-attention-fg);
 }
 
 .rumdl-section-title.info {
-  color: var(--rumdl-info);
+  color: var(--color-accent-fg);
 }
 
-.rumdl-section-title.info::before {
-  background: var(--rumdl-info);
-  box-shadow: 0 0 8px var(--rumdl-info);
-}
-
-/* ============================================
-   Buttons
-   ============================================ */
-.rumdl-btn {
-  padding: 6px 14px;
-  border: 1px solid var(--rumdl-border);
-  border-radius: 8px;
-  background: var(--rumdl-surface);
-  color: var(--rumdl-text);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--rumdl-transition-fast);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.rumdl-btn:hover:not(:disabled) {
-  background: var(--rumdl-border-subtle);
-  border-color: var(--rumdl-text-tertiary);
-  transform: translateY(-1px);
-  box-shadow: var(--rumdl-shadow-sm);
-}
-
-.rumdl-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.rumdl-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.rumdl-btn-fix {
-  background: linear-gradient(135deg, var(--rumdl-success) 0%, #94e2d5 100%);
-  border: none;
-  color: #1e1e2e;
-  box-shadow: 0 2px 8px rgba(166, 227, 161, 0.3);
-}
-
-.rumdl-btn-fix:hover:not(:disabled) {
-  background: linear-gradient(135deg, #94e2d5 0%, var(--rumdl-success) 100%);
-  box-shadow: 0 4px 12px rgba(166, 227, 161, 0.4);
-}
-
-.rumdl-btn-close {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--rumdl-text-tertiary);
-}
-
-.rumdl-btn-close:hover {
-  background: var(--rumdl-error-dim);
-  color: var(--rumdl-error);
-}
-
-/* ============================================
-   Warning Items
-   ============================================ */
 .rumdl-warning {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--rumdl-border-subtle);
+  padding: 8px 12px;
   cursor: pointer;
-  transition: all var(--rumdl-transition-fast);
-  position: relative;
-}
-
-.rumdl-warning::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: transparent;
-  transition: background var(--rumdl-transition-fast);
+  border-left: 2px solid transparent;
+  transition: background 0.1s ease;
 }
 
 .rumdl-warning:hover {
-  background: var(--rumdl-border-subtle);
-}
-
-.rumdl-warning:hover::before {
-  background: var(--rumdl-brand);
-}
-
-.rumdl-warning:last-child {
-  border-bottom: none;
+  background: var(--color-canvas-subtle);
+  border-left-color: var(--color-accent-fg);
 }
 
 .rumdl-warning-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .rumdl-warning-rule {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  letter-spacing: 0.5px;
 }
 
 .rumdl-warning-rule.error {
-  background: var(--rumdl-error-dim);
-  color: var(--rumdl-error);
+  color: var(--color-danger-fg);
 }
 
 .rumdl-warning-rule.warning {
-  background: var(--rumdl-warning-dim);
-  color: var(--rumdl-warning);
+  color: var(--color-attention-fg);
 }
 
 .rumdl-warning-rule.info {
-  background: var(--rumdl-info-dim);
-  color: var(--rumdl-info);
+  color: var(--color-accent-fg);
 }
 
 .rumdl-warning-location {
-  font-size: 11px;
-  color: var(--rumdl-text-tertiary);
+  font-size: 12px;
+  color: var(--color-fg-subtle);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  background: var(--rumdl-border-subtle);
-  padding: 2px 8px;
-  border-radius: 4px;
 }
 
 .rumdl-warning-message {
-  font-size: 13px;
-  color: var(--rumdl-text);
-  line-height: 1.5;
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  line-height: 1.4;
 }
 
 .rumdl-btn-fix-one {
-  margin-top: 10px;
-  padding: 4px 10px;
+  margin-top: 6px;
+  padding: 2px 6px;
   font-size: 11px;
 }
 
@@ -506,28 +336,28 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
-  color: var(--rumdl-text-secondary);
+  padding: 32px 16px;
+  color: var(--color-fg-muted);
 }
 
 .rumdl-empty svg {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 16px;
-  color: var(--rumdl-success);
-  filter: drop-shadow(0 4px 12px rgba(166, 227, 161, 0.4));
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+  color: var(--color-success-fg);
 }
 
 .rumdl-empty p {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
+  color: var(--color-fg-default);
 }
 
 .rumdl-empty .rumdl-empty-subtitle {
   margin-top: 4px;
   font-size: 12px;
-  color: var(--rumdl-text-tertiary);
+  color: var(--color-fg-muted);
 }
 
 /* ============================================
@@ -536,112 +366,51 @@
 .rumdl-status-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  margin-right: 8px;
-  border: 1px solid var(--rumdl-border);
-  border-radius: 8px;
-  background: var(--rumdl-surface);
-  color: var(--rumdl-text-secondary);
+  gap: 4px;
+  padding: 3px 8px;
+  margin: 0 4px;
   font-size: 12px;
   font-weight: 500;
+  color: var(--color-fg-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all var(--rumdl-transition-fast);
+  transition: 0.1s ease;
 }
 
 .rumdl-status-btn:hover {
-  background: var(--rumdl-border-subtle);
-  border-color: var(--rumdl-text-tertiary);
-  transform: translateY(-1px);
-  box-shadow: var(--rumdl-shadow-sm);
+  background: var(--color-neutral-muted);
 }
 
 .rumdl-status-btn.has-warnings {
-  color: var(--rumdl-warning);
-  border-color: var(--rumdl-warning);
-  background: var(--rumdl-warning-dim);
-}
-
-.rumdl-status-btn.has-warnings:hover {
-  box-shadow: 0 2px 8px rgba(250, 179, 135, 0.3);
-}
-
-.rumdl-status-btn.no-warnings {
-  color: var(--rumdl-success);
-  border-color: var(--rumdl-success);
-  background: var(--rumdl-success-dim);
+  color: var(--color-attention-fg);
 }
 
 .rumdl-status-btn svg {
-  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
 }
 
 .rumdl-status-count {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .rumdl-status-time {
-  font-size: 10px;
-  opacity: 0.7;
-  margin-left: 2px;
+  font-size: 11px;
+  color: var(--color-fg-subtle);
 }
 
 /* ============================================
-   Tooltip
+   Tooltip - GitHub Style
    ============================================ */
 .rumdl-tooltip {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-  background: var(--rumdl-surface-overlay) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid var(--rumdl-border) !important;
-  border-radius: 10px !important;
-  box-shadow: var(--rumdl-shadow-lg) !important;
-  padding: 10px 14px !important;
-  max-width: 320px !important;
-  animation: rumdl-tooltip-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  font-size: 12px;
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
+  padding: 8px 12px;
+  max-width: 300px;
 }
-
-@keyframes rumdl-tooltip-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ============================================
-   Animations
-   ============================================ */
-@keyframes rumdl-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-@keyframes rumdl-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.rumdl-warning {
-  animation: rumdl-slide-up 0.3s ease backwards;
-}
-
-.rumdl-warning:nth-child(1) { animation-delay: 0.05s; }
-.rumdl-warning:nth-child(2) { animation-delay: 0.1s; }
-.rumdl-warning:nth-child(3) { animation-delay: 0.15s; }
-.rumdl-warning:nth-child(4) { animation-delay: 0.2s; }
-.rumdl-warning:nth-child(5) { animation-delay: 0.25s; }
