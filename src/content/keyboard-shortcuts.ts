@@ -59,12 +59,23 @@ const SHORTCUTS: ShortcutDefinition[] = [
   }
 ];
 
+// Type for Navigator.userAgentData (not in all TS versions)
+interface NavigatorUAData {
+  platform?: string;
+}
+
+declare global {
+  interface Navigator {
+    userAgentData?: NavigatorUAData;
+  }
+}
+
 /**
  * Detect if running on macOS using modern APIs with fallback
  */
 function isMacOS(): boolean {
   // Modern API (Chromium 90+)
-  if ('userAgentData' in navigator && navigator.userAgentData?.platform) {
+  if (navigator.userAgentData?.platform) {
     return navigator.userAgentData.platform.toLowerCase() === 'macos';
   }
   // Fallback for older browsers

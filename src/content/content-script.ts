@@ -9,6 +9,7 @@ import { KeyboardShortcuts, ShortcutAction } from './keyboard-shortcuts.js';
 import { showTooltip, hideTooltip, destroyTooltip } from './tooltip.js';
 import { lint, fix, getConfig, ping } from '../shared/messages.js';
 import { toLinterConfig } from '../shared/config-utils.js';
+import { validateAndMergeConfig } from '../shared/storage.js';
 import type { LintWarning, RumdlConfig } from '../shared/types.js';
 
 // Debug mode - set to false for production
@@ -101,7 +102,7 @@ async function init(): Promise<void> {
   // Listen for config changes (store reference for cleanup)
   storageListener = (changes, area) => {
     if (area === 'sync' && changes.rumdl_config) {
-      config = changes.rumdl_config.newValue;
+      config = validateAndMergeConfig(changes.rumdl_config.newValue);
       log('Config updated:', config);
       // Re-lint all editors with new config
       for (const textarea of editorStates.keys()) {

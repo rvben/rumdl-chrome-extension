@@ -8,7 +8,7 @@ const STORAGE_KEY = 'rumdl_config';
  * Safely merge stored config with defaults, validating each field
  * to prevent prototype pollution and invalid values
  */
-function validateAndMergeConfig(stored: unknown): RumdlConfig {
+export function validateAndMergeConfig(stored: unknown): RumdlConfig {
   if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
     return DEFAULT_CONFIG;
   }
