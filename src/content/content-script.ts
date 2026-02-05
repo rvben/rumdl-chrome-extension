@@ -4,6 +4,7 @@
 import { EditorManager } from './editor-manager.js';
 import { WarningPanel } from './warning-panel.js';
 import { KeyboardShortcuts, ShortcutAction } from './keyboard-shortcuts.js';
+import { GutterMarkers } from './gutter-markers.js';
 import { destroyTooltip } from './tooltip.js';
 import { lint, fix, getConfig, ping } from '../shared/messages.js';
 import { toLinterConfig } from '../shared/config-utils.js';
@@ -25,6 +26,7 @@ function logError(...args: unknown[]): void {
 let config: RumdlConfig | null = null;
 const editorManager = new EditorManager();
 const keyboardShortcuts = new KeyboardShortcuts();
+const gutterMarkers = new GutterMarkers();
 
 // Storage listener reference for cleanup
 let storageListener: ((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void) | null = null;
@@ -32,6 +34,7 @@ let storageListener: ((changes: { [key: string]: chrome.storage.StorageChange },
 // Map of textarea to its state
 interface EditorState {
   panel: WarningPanel;
+  gutter: HTMLElement;
   debounceTimer: ReturnType<typeof setTimeout> | null;
   lastContent: string;
   lastContentHash: string;
@@ -163,12 +166,16 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
   // Create warning panel
   const panel = new WarningPanel();
 
+  // Create gutter for inline markers
+  const gutter = gutterMarkers.createGutter(textarea);
+
   // Create status button in toolbar
   const button = createLintButton(textarea);
 
   // Store state
   const state: EditorState = {
     panel,
+    gutter,
     debounceTimer: null,
     lastContent: '',
     lastContentHash: '',
@@ -210,6 +217,7 @@ function cleanupEditor(textarea: HTMLTextAreaElement): void {
   // Remove UI elements
   state.panel.destroy();
   state.button?.remove();
+  gutterMarkers.removeGutter(textarea);
 
   // Unregister shortcuts
   keyboardShortcuts.unregister(textarea);
@@ -284,6 +292,7 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     state.lintTime = 0;
     state.panel.updateWarnings([], 0);
     updateButton(state.button, 0, 0);
+    gutterMarkers.clear(state.gutter);
     return;
   }
 
@@ -296,9 +305,10 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     state.warnings = warnings;
     state.lintTime = lintTime;
 
-    // Update UI - just the panel and status button
+    // Update UI
     state.panel.updateWarnings(warnings, lintTime);
     updateButton(state.button, warnings.length, lintTime);
+    gutterMarkers.render(state.gutter, textarea, warnings);
 
     log(`Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
   } catch (error) {

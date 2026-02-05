@@ -420,3 +420,31 @@
   padding: 8px 12px;
   max-width: 300px;
 }
+
+/* ============================================
+   Gutter Markers - Line indicators
+   ============================================ */
+.rumdl-gutter {
+  pointer-events: none;
+}
+
+.rumdl-gutter-dot {
+  position: absolute;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0.8;
+}
+
+.rumdl-gutter-dot.rumdl-gutter-error {
+  background-color: var(--color-danger-fg);
+}
+
+.rumdl-gutter-dot.rumdl-gutter-warning {
+  background-color: var(--color-attention-fg);
+}
+
+.rumdl-gutter-dot.rumdl-gutter-info {
+  background-color: var(--color-accent-fg);
+}

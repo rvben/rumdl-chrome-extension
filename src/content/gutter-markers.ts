@@ -1,4 +1,4 @@
-// Gutter Markers - line number indicators for lint warnings
+// Gutter Markers - small dots indicating lines with issues
 
 import type { LintWarning } from '../shared/types.js';
 
@@ -7,16 +7,10 @@ interface GutterState {
   resizeObserver: ResizeObserver;
   scrollHandler: () => void;
   lineHeight: number;
+  paddingTop: number;
 }
 
 const gutterStates = new Map<HTMLTextAreaElement, GutterState>();
-
-// Severity colors
-const SEVERITY_COLORS = {
-  Error: '#f38ba8',
-  Warning: '#fab387',
-  Info: '#89b4fa'
-};
 
 export class GutterMarkers {
   /**
@@ -46,15 +40,15 @@ export class GutterMarkers {
 
     const computedStyle = getComputedStyle(textarea);
     const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
+    const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
 
     const syncDimensions = () => {
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
       container.style.cssText = `
         position: absolute;
         top: ${textarea.offsetTop + paddingTop}px;
-        left: ${textarea.offsetLeft - 24}px;
-        width: 20px;
-        height: ${textarea.offsetHeight - paddingTop}px;
+        left: ${textarea.offsetLeft + 4}px;
+        width: 8px;
+        height: ${textarea.offsetHeight - paddingTop * 2}px;
         pointer-events: none;
         overflow: hidden;
         z-index: 2;
@@ -75,7 +69,8 @@ export class GutterMarkers {
       container,
       resizeObserver,
       scrollHandler,
-      lineHeight
+      lineHeight,
+      paddingTop
     });
 
     return container;
@@ -115,39 +110,17 @@ export class GutterMarkers {
 
     // Create marker for each line with warnings
     for (const [line, lineWarningList] of lineWarnings) {
-      // Use the highest severity for the line
       const severity = this.getHighestSeverity(lineWarningList);
 
       const marker = document.createElement('div');
-      marker.className = `rumdl-gutter-marker rumdl-gutter-${severity.toLowerCase()}`;
+      marker.className = `rumdl-gutter-dot rumdl-gutter-${severity.toLowerCase()}`;
 
-      const top = (line - 1) * state.lineHeight;
-      marker.style.cssText = `
-        position: absolute;
-        top: ${top}px;
-        left: 0;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: ${SEVERITY_COLORS[severity]};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: bold;
-        color: #1e1e2e;
-      `;
+      // Center the dot vertically on the line
+      const top = (line - 1) * state.lineHeight + (state.lineHeight / 2) - 3;
+      marker.style.top = `${top}px`;
 
-      // Show count if multiple warnings on this line
-      if (lineWarningList.length > 1) {
-        marker.textContent = lineWarningList.length.toString();
-      }
-
-      // Tooltip with all warnings on this line
-      const tooltipText = lineWarningList
-        .map(w => `${w.rule_name || 'rumdl'}: ${w.message}`)
-        .join('\n');
-      marker.title = tooltipText;
+      // Tooltip with warning count
+      marker.title = `${lineWarningList.length} issue${lineWarningList.length > 1 ? 's' : ''} on line ${line}`;
 
       gutter.appendChild(marker);
     }
