@@ -221,13 +221,19 @@
 }
 
 .rumdl-btn-fix {
-  color: #fff;
+  color: #ffffff;
   background-color: var(--color-success-emphasis);
   border-color: var(--color-success-emphasis);
 }
 
 .rumdl-btn-fix:hover:not(:disabled) {
   background-color: var(--color-success-fg);
+}
+
+.rumdl-btn-fix:disabled {
+  color: rgba(255, 255, 255, 0.6);
+  background-color: var(--color-success-emphasis);
+  opacity: 0.6;
 }
 
 .rumdl-btn-close {
