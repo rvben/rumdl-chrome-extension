@@ -37,8 +37,8 @@ let lastConfigHash: string = '';
 let initPromise: Promise<void> | null = null;
 let initFailed: boolean = false;
 
-// Import WASM module statically (bundled at build time)
-import * as wasmBindings from '../../wasm/rumdl_lib.js';
+// Import WASM module - use initSync to avoid dynamic import issues in service workers
+import { initSync, Linter, get_version, get_available_rules } from '../../wasm/rumdl_lib.js';
 
 // Initialize the WASM module with proper error handling
 async function initializeWasm(): Promise<void> {
@@ -65,15 +65,22 @@ async function initializeWasm(): Promise<void> {
 
       const wasmBuffer = await wasmResponse.arrayBuffer();
 
-      // Initialize with the WASM binary
-      await wasmBindings.default(wasmBuffer);
+      // Use initSync to avoid dynamic import issues in service workers
+      initSync({ module: wasmBuffer });
+
+      // Create module wrapper with the imported functions
+      const moduleWrapper = {
+        Linter,
+        get_version,
+        get_available_rules,
+      };
 
       // Validate the module has expected shape
-      if (!isValidWasmModule(wasmBindings)) {
+      if (!isValidWasmModule(moduleWrapper)) {
         throw new Error('WASM module does not have expected interface');
       }
 
-      wasmModule = wasmBindings;
+      wasmModule = moduleWrapper;
     } catch (error) {
       // Mark as permanently failed to avoid retry loops
       initFailed = true;
