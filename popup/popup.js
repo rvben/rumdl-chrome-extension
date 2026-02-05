@@ -37,6 +37,15 @@ const elements = {
 
 let allRules = [];
 
+const VALID_FLAVORS = ['standard', 'mkdocs', 'mdx', 'quarto', 'obsidian'];
+
+// Escape HTML to prevent XSS
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 // Load config from storage
 async function loadConfig() {
   try {
@@ -130,16 +139,20 @@ function renderRulesList(rules, config) {
 
   const disabledSet = new Set(config.disabledRules.map(r => r.toUpperCase()));
 
-  elements.rulesList.innerHTML = rules.map(rule => `
+  elements.rulesList.innerHTML = rules.map(rule => {
+    const escapedName = escapeHtml(rule.name);
+    const escapedDesc = escapeHtml(rule.description);
+    return `
     <div class="rule-item">
-      <input type="checkbox" id="rule-${rule.name}" data-rule="${rule.name}"
+      <input type="checkbox" id="rule-${escapedName}" data-rule="${escapedName}"
              ${!disabledSet.has(rule.name.toUpperCase()) ? 'checked' : ''}>
-      <label for="rule-${rule.name}">
-        <span class="rule-name">${rule.name}</span>
-        <span class="rule-desc">${rule.description}</span>
+      <label for="rule-${escapedName}">
+        <span class="rule-name">${escapedName}</span>
+        <span class="rule-desc">${escapedDesc}</span>
       </label>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   // Add change listeners
   elements.rulesList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
@@ -201,7 +214,9 @@ async function importConfig(file) {
     // Validate the config has expected properties
     const validConfig = { ...DEFAULT_CONFIG };
     if (typeof config.enabled === 'boolean') validConfig.enabled = config.enabled;
-    if (typeof config.flavor === 'string') validConfig.flavor = config.flavor;
+    if (typeof config.flavor === 'string' && VALID_FLAVORS.includes(config.flavor)) {
+      validConfig.flavor = config.flavor;
+    }
     if (typeof config.lineLength === 'number') validConfig.lineLength = config.lineLength;
     if (Array.isArray(config.disabledRules)) validConfig.disabledRules = config.disabledRules;
     if (Array.isArray(config.enabledRules)) validConfig.enabledRules = config.enabledRules;
