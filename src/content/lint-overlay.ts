@@ -118,49 +118,14 @@ export class LintOverlay {
 
   /**
    * Render lint warnings in the overlay
+   * Currently disabled - using gutter markers and tooltips only for cleaner UX
    */
-  render(overlay: HTMLElement, textarea: HTMLTextAreaElement, warnings: LintWarning[]): void {
-    overlay.innerHTML = '';
-
-    if (warnings.length === 0) return;
-
-    const state = overlayStates.get(textarea);
-    if (!state) return;
-
-    const computedStyle = getComputedStyle(textarea);
-    const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
-    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-
-    // Create marker for each warning
-    for (const warning of warnings) {
-      const marker = document.createElement('div');
-      marker.className = `rumdl-marker rumdl-${warning.severity.toLowerCase()}`;
-
-      // Calculate position based on line/column
-      // Lines and columns are 1-indexed from the linter
-      const lineIndex = warning.line - 1;
-      const colIndex = warning.column - 1;
-      const endColIndex = warning.end_column - 1;
-
-      const top = lineIndex * state.lineHeight + paddingTop;
-      const left = colIndex * state.charWidth + paddingLeft;
-      const width = Math.max((endColIndex - colIndex) * state.charWidth, state.charWidth);
-
-      marker.style.cssText = `
-        position: absolute;
-        top: ${top + state.lineHeight - 3}px;
-        left: ${left}px;
-        width: ${width}px;
-        height: 2px;
-        background: ${SEVERITY_COLORS[warning.severity]};
-        border-radius: 1px;
-      `;
-
-      // Add tooltip
-      marker.title = `${warning.rule_name || 'rumdl'}: ${warning.message}`;
-
-      overlay.appendChild(marker);
-    }
+  render(_overlay: HTMLElement, _textarea: HTMLTextAreaElement, _warnings: LintWarning[]): void {
+    // Intentionally empty - inline markers were too visually intrusive
+    // Users can see warnings via:
+    // 1. Gutter dots on the left
+    // 2. Status button in toolbar
+    // 3. Warning panel (Cmd+Shift+L)
   }
 
   /**

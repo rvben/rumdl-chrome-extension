@@ -1,12 +1,10 @@
 // Content script for rumdl GitHub extension
-// Manages editor detection, linting, and UI overlays
+// Manages editor detection, linting, and status UI
 
 import { EditorManager } from './editor-manager.js';
-import { LintOverlay } from './lint-overlay.js';
-import { GutterMarkers } from './gutter-markers.js';
 import { WarningPanel } from './warning-panel.js';
 import { KeyboardShortcuts, ShortcutAction } from './keyboard-shortcuts.js';
-import { showTooltip, hideTooltip, destroyTooltip } from './tooltip.js';
+import { destroyTooltip } from './tooltip.js';
 import { lint, fix, getConfig, ping } from '../shared/messages.js';
 import { toLinterConfig } from '../shared/config-utils.js';
 import { validateAndMergeConfig } from '../shared/storage.js';
@@ -26,8 +24,6 @@ function logError(...args: unknown[]): void {
 // Global state
 let config: RumdlConfig | null = null;
 const editorManager = new EditorManager();
-const lintOverlay = new LintOverlay();
-const gutterMarkers = new GutterMarkers();
 const keyboardShortcuts = new KeyboardShortcuts();
 
 // Storage listener reference for cleanup
@@ -35,8 +31,6 @@ let storageListener: ((changes: { [key: string]: chrome.storage.StorageChange },
 
 // Map of textarea to its state
 interface EditorState {
-  overlay: HTMLElement;
-  gutter: HTMLElement | null;
   panel: WarningPanel;
   debounceTimer: ReturnType<typeof setTimeout> | null;
   lastContent: string;
@@ -166,25 +160,14 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
 
   log('Setting up editor:', textarea.name || textarea.id);
 
-  // Create overlay
-  const overlay = lintOverlay.createOverlay(textarea);
-
-  // Create gutter if enabled
-  let gutter: HTMLElement | null = null;
-  if (config?.showGutterIcons) {
-    gutter = gutterMarkers.createGutter(textarea);
-  }
-
   // Create warning panel
   const panel = new WarningPanel();
 
-  // Create lint button
+  // Create status button in toolbar
   const button = createLintButton(textarea);
 
   // Store state
   const state: EditorState = {
-    overlay,
-    gutter,
     panel,
     debounceTimer: null,
     lastContent: '',
@@ -206,9 +189,6 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
   // Register keyboard shortcuts
   keyboardShortcuts.register(textarea, (action, ta) => handleShortcut(action, ta));
 
-  // Set up hover tooltips for markers
-  setupMarkerTooltips(overlay, textarea);
-
   // Initial lint
   performLint(textarea);
 }
@@ -228,10 +208,6 @@ function cleanupEditor(textarea: HTMLTextAreaElement): void {
   }
 
   // Remove UI elements
-  lintOverlay.removeOverlay(textarea);
-  if (state.gutter) {
-    gutterMarkers.removeGutter(textarea);
-  }
   state.panel.destroy();
   state.button?.remove();
 
@@ -306,8 +282,6 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
   if (!content.trim()) {
     state.warnings = [];
     state.lintTime = 0;
-    lintOverlay.clear(state.overlay);
-    if (state.gutter) gutterMarkers.clear(state.gutter);
     state.panel.updateWarnings([], 0);
     updateButton(state.button, 0, 0);
     return;
@@ -322,17 +296,7 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     state.warnings = warnings;
     state.lintTime = lintTime;
 
-    // Update UI
-    if (config.showInlineMarkers) {
-      lintOverlay.render(state.overlay, textarea, warnings);
-    } else {
-      lintOverlay.clear(state.overlay);
-    }
-
-    if (state.gutter && config.showGutterIcons) {
-      gutterMarkers.render(state.gutter, textarea, warnings);
-    }
-
+    // Update UI - just the panel and status button
     state.panel.updateWarnings(warnings, lintTime);
     updateButton(state.button, warnings.length, lintTime);
 
@@ -494,43 +458,6 @@ async function handlePaste(e: ClipboardEvent, textarea: HTMLTextAreaElement): Pr
   setTimeout(async () => {
     await formatDocument(textarea);
   }, 0);
-}
-
-/**
- * Set up hover tooltips for lint markers
- */
-function setupMarkerTooltips(overlay: HTMLElement, textarea: HTMLTextAreaElement): void {
-  overlay.addEventListener('mouseover', (e) => {
-    const target = e.target as HTMLElement;
-    if (!target.classList.contains('rumdl-marker')) return;
-
-    const state = editorStates.get(textarea);
-    if (!state) return;
-
-    // Find the warning for this marker
-    const title = target.title;
-    if (!title) return;
-
-    // Parse the warning from the title
-    const [ruleName, ...messageParts] = title.split(': ');
-    const message = messageParts.join(': ');
-
-    const warning = state.warnings.find(
-      w => (w.rule_name || 'rumdl') === ruleName && w.message === message
-    );
-
-    if (warning) {
-      const rect = target.getBoundingClientRect();
-      showTooltip(warning, rect.left, rect.bottom);
-    }
-  });
-
-  overlay.addEventListener('mouseout', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.classList.contains('rumdl-marker')) {
-      hideTooltip();
-    }
-  });
 }
 
 /**
