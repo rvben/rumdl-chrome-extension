@@ -464,10 +464,18 @@ async function handlePaste(e: ClipboardEvent, textarea: HTMLTextAreaElement): Pr
  * Create a lint status button near the textarea
  */
 function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
-  const form = textarea.closest('form');
-  if (!form) return null;
+  // Find toolbar by traversing up the DOM - GitHub uses various container structures
+  let container: HTMLElement | null = textarea.parentElement;
+  let toolbar: Element | null = null;
 
-  const toolbar = form.querySelector('.toolbar-commenting, .tabnav-tabs, .form-actions, .d-flex.flex-justify-end');
+  // Look up to 10 levels for a container with a toolbar
+  for (let i = 0; i < 10 && container && !toolbar; i++) {
+    toolbar = container.querySelector('[role="toolbar"], .toolbar-commenting, .tabnav-tabs, .form-actions');
+    if (!toolbar) {
+      container = container.parentElement;
+    }
+  }
+
   if (!toolbar) return null;
 
   const button = document.createElement('button');
