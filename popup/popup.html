@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rumdl for GitHub</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup">
+    <header class="header">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span class="logo-text">rumdl</span>
+      </div>
+      <span class="version" id="version">v?.?.?</span>
+    </header>
+
+    <main class="content">
+      <!-- Enable/Disable Toggle -->
+      <section class="section">
+        <div class="toggle-row">
+          <label for="enabled" class="toggle-label">
+            <span class="toggle-title">Enable rumdl</span>
+            <span class="toggle-desc">Lint markdown in GitHub editors</span>
+          </label>
+          <input type="checkbox" id="enabled" class="toggle">
+        </div>
+      </section>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="general">General</button>
+        <button class="tab" data-tab="rules">Rules</button>
+        <button class="tab" data-tab="advanced">Advanced</button>
+      </div>
+
+      <!-- General Tab -->
+      <section class="tab-content active" id="tab-general">
+        <div class="form-group">
+          <label for="flavor" class="label">Markdown Flavor</label>
+          <select id="flavor" class="select">
+            <option value="standard">Standard</option>
+            <option value="mkdocs">MkDocs</option>
+            <option value="mdx">MDX</option>
+            <option value="quarto">Quarto</option>
+            <option value="obsidian">Obsidian</option>
+          </select>
+          <span class="hint">Choose the markdown variant you're using</span>
+        </div>
+
+        <div class="form-group">
+          <label for="lineLength" class="label">Line Length</label>
+          <input type="number" id="lineLength" class="input" min="40" max="500" step="1">
+          <span class="hint">Maximum characters per line (0 = unlimited)</span>
+        </div>
+
+        <div class="form-group">
+          <label class="label">Display Options</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="showInlineMarkers">
+              <span>Show inline underline markers</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="showGutterIcons">
+              <span>Show gutter icons</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="autoFormat">
+              <span>Auto-format pasted markdown</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Rules Tab -->
+      <section class="tab-content" id="tab-rules">
+        <div class="form-group">
+          <label for="disabledRules" class="label">Disabled Rules</label>
+          <input type="text" id="disabledRules" class="input" placeholder="MD041, MD013, ...">
+          <span class="hint">Comma-separated rule names to disable</span>
+        </div>
+
+        <div class="form-group">
+          <label for="enabledRules" class="label">Enabled Rules Only</label>
+          <input type="text" id="enabledRules" class="input" placeholder="">
+          <span class="hint">If set, only these rules will run (leave empty for all)</span>
+        </div>
+
+        <div class="rules-list" id="rulesList">
+          <div class="loading">Loading rules...</div>
+        </div>
+      </section>
+
+      <!-- Advanced Tab -->
+      <section class="tab-content" id="tab-advanced">
+        <div class="form-group">
+          <label class="label">Import/Export Settings</label>
+          <div class="btn-group">
+            <button id="exportBtn" class="btn btn-secondary">Export</button>
+            <button id="importBtn" class="btn btn-secondary">Import</button>
+          </div>
+          <input type="file" id="importFile" accept=".json" style="display: none;">
+        </div>
+
+        <div class="form-group">
+          <label class="label">Keyboard Shortcuts</label>
+          <div class="shortcuts-list">
+            <div class="shortcut"><kbd>Ctrl+Shift+F</kbd> Format document</div>
+            <div class="shortcut"><kbd>Ctrl+Shift+L</kbd> Toggle panel</div>
+            <div class="shortcut"><kbd>Ctrl+.</kbd> Quick fix at cursor</div>
+            <div class="shortcut"><kbd>Ctrl+Alt+]</kbd> Next warning</div>
+            <div class="shortcut"><kbd>Ctrl+Alt+[</kbd> Previous warning</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <button id="resetBtn" class="btn btn-danger">Reset to Defaults</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <a href="https://github.com/rvben/rumdl" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">|</span>
+      <a href="https://github.com/rvben/rumdl/blob/main/docs/RULES.md" target="_blank" rel="noopener">Rules</a>
+      <span class="sep">|</span>
+      <span id="ruleCount">0 rules</span>
+    </footer>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "rumdl-github-extension",
+  "version": "1.0.0",
+  "description": "Fast Markdown linting for GitHub issues, PRs, and comments",
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:wasm && node scripts/build.js",
+    "build:wasm": "node scripts/copy-wasm.js",
+    "watch": "node scripts/build.js && node scripts/build.js --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run build && cd .. && zip -r rumdl-github-extension.zip chrome-extension -x '*.ts' -x 'node_modules/*' -x 'src/*' -x 'tsconfig.json' -x 'package*.json' -x 'scripts/*'"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@types/chrome": "^0.1.36",
+    "esbuild": "^0.27.2",
+    "typescript": "^5.3.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# WASM files (copied from wasm-demo/pkg)
+wasm/
+
+# Package files
+*.zip
