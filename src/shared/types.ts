@@ -19,21 +19,25 @@ export interface LintFix {
   replacement: string;
 }
 
+export const VALID_FLAVORS = ['standard', 'mkdocs', 'mdx', 'quarto', 'obsidian'] as const;
+
+export type Flavor = typeof VALID_FLAVORS[number];
+
 export interface LinterConfig {
   disable?: string[];
   enable?: string[];
   'line-length'?: number;
-  flavor?: 'standard' | 'mkdocs' | 'mdx' | 'quarto' | 'obsidian';
+  flavor?: Flavor;
   [key: string]: unknown; // For rule-specific configs
 }
 
 export interface RumdlConfig {
   enabled: boolean;
-  flavor: 'standard' | 'mkdocs' | 'mdx' | 'quarto' | 'obsidian';
+  flavor: Flavor;
   lineLength: number;
   disabledRules: string[];
   enabledRules: string[];
-  ruleConfigs: Record<string, Record<string, unknown>>;
+  ruleConfigs: Record<string, unknown>;
   autoFormat: boolean;
   showInlineMarkers: boolean;
   showGutterIcons: boolean;

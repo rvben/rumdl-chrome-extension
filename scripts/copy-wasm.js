@@ -8,7 +8,12 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
-const wasmSrc = join(rootDir, '..', 'wasm-demo', 'pkg');
+// Try multiple possible source locations
+const wasmSrcPaths = [
+  join(rootDir, '..', 'rumdl', 'wasm-demo', 'pkg'),  // rumdl project's wasm-demo
+  join(rootDir, '..', 'rumdl', 'pkg'),               // rumdl project's pkg
+  join(rootDir, '..', 'wasm-demo', 'pkg'),           // sibling wasm-demo
+];
 const wasmDest = join(rootDir, 'wasm');
 
 // Files to copy
@@ -23,12 +28,30 @@ if (!existsSync(wasmDest)) {
   mkdirSync(wasmDest, { recursive: true });
 }
 
-// Check if source files exist
-if (!existsSync(wasmSrc)) {
-  console.error('Error: WASM source directory not found at:', wasmSrc);
-  console.error('Please run "wasm-pack build" in the wasm-demo directory first.');
+// Check if files already exist in destination
+const allFilesExist = files.every(file => existsSync(join(wasmDest, file)));
+if (allFilesExist) {
+  console.log('WASM files already exist in destination, skipping copy.');
+  process.exit(0);
+}
+
+// Find source directory
+let wasmSrc = null;
+for (const srcPath of wasmSrcPaths) {
+  if (existsSync(srcPath)) {
+    wasmSrc = srcPath;
+    break;
+  }
+}
+
+if (!wasmSrc) {
+  console.error('Error: WASM source directory not found. Tried:');
+  wasmSrcPaths.forEach(p => console.error('  -', p));
+  console.error('Please run "wasm-pack build" in the rumdl/wasm-demo directory first.');
   process.exit(1);
 }
+
+console.log('Found WASM source at:', wasmSrc);
 
 // Copy files
 for (const file of files) {

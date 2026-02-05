@@ -143,6 +143,10 @@ export class WarningPanel {
       return;
     }
 
+    // Build index map for O(1) lookup
+    const indexMap = new Map<LintWarning, number>();
+    warnings.forEach((w, i) => indexMap.set(w, i));
+
     // Group by severity
     const errors = warnings.filter(w => w.severity === 'Error');
     const warns = warnings.filter(w => w.severity === 'Warning');
@@ -151,20 +155,20 @@ export class WarningPanel {
     let html = '';
 
     if (errors.length > 0) {
-      html += `<div class="rumdl-section"><div class="rumdl-section-title error">Errors (${errors.length})</div>`;
-      html += errors.map((w, i) => this.renderWarning(w, warnings.indexOf(w))).join('');
+      html += `<div class="rumdl-section" role="list" aria-label="Errors"><div class="rumdl-section-title error">Errors (${errors.length})</div>`;
+      html += errors.map(w => this.renderWarning(w, indexMap.get(w)!)).join('');
       html += '</div>';
     }
 
     if (warns.length > 0) {
-      html += `<div class="rumdl-section"><div class="rumdl-section-title warning">Warnings (${warns.length})</div>`;
-      html += warns.map((w, i) => this.renderWarning(w, warnings.indexOf(w))).join('');
+      html += `<div class="rumdl-section" role="list" aria-label="Warnings"><div class="rumdl-section-title warning">Warnings (${warns.length})</div>`;
+      html += warns.map(w => this.renderWarning(w, indexMap.get(w)!)).join('');
       html += '</div>';
     }
 
     if (infos.length > 0) {
-      html += `<div class="rumdl-section"><div class="rumdl-section-title info">Info (${infos.length})</div>`;
-      html += infos.map((w, i) => this.renderWarning(w, warnings.indexOf(w))).join('');
+      html += `<div class="rumdl-section" role="list" aria-label="Info"><div class="rumdl-section-title info">Info (${infos.length})</div>`;
+      html += infos.map(w => this.renderWarning(w, indexMap.get(w)!)).join('');
       html += '</div>';
     }
 
@@ -188,14 +192,16 @@ export class WarningPanel {
    * Render a single warning item
    */
   private renderWarning(warning: LintWarning, index: number): string {
+    const severityClass = this.escapeHtml(warning.severity.toLowerCase());
+    const ruleName = this.escapeHtml(warning.rule_name || 'rumdl');
     return `
-      <div class="rumdl-warning" data-index="${index}">
+      <div class="rumdl-warning" data-index="${index}" role="listitem" aria-label="${ruleName}: ${this.escapeHtml(warning.message)}">
         <div class="rumdl-warning-header">
-          <span class="rumdl-warning-rule ${warning.severity.toLowerCase()}">${warning.rule_name || 'rumdl'}</span>
+          <span class="rumdl-warning-rule ${severityClass}">${ruleName}</span>
           <span class="rumdl-warning-location">Ln ${warning.line}, Col ${warning.column}</span>
         </div>
         <div class="rumdl-warning-message">${this.escapeHtml(warning.message)}</div>
-        ${warning.fix ? `<button class="rumdl-btn rumdl-btn-fix-one" data-index="${index}">Fix</button>` : ''}
+        ${warning.fix ? `<button class="rumdl-btn rumdl-btn-fix-one" data-index="${index}" aria-label="Fix this issue">Fix</button>` : ''}
       </div>
     `;
   }
@@ -219,8 +225,9 @@ export class WarningPanel {
     this.textarea.focus();
     this.textarea.setSelectionRange(pos, pos);
 
-    // Scroll into view
-    const lineHeight = 20;
+    // Scroll into view - compute line height from textarea styles
+    const computedStyle = window.getComputedStyle(this.textarea);
+    const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
     const scrollTop = (warning.line - 5) * lineHeight;
     this.textarea.scrollTop = Math.max(0, scrollTop);
   }

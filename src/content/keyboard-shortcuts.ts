@@ -59,23 +59,39 @@ const SHORTCUTS: ShortcutDefinition[] = [
   }
 ];
 
+/**
+ * Detect if running on macOS using modern APIs with fallback
+ */
+function isMacOS(): boolean {
+  // Modern API (Chromium 90+)
+  if ('userAgentData' in navigator && navigator.userAgentData?.platform) {
+    return navigator.userAgentData.platform.toLowerCase() === 'macos';
+  }
+  // Fallback for older browsers
+  return /mac/i.test(navigator.platform || '');
+}
+
+interface RegisteredHandler {
+  handler: ShortcutHandler;
+  keydownListener: (e: KeyboardEvent) => void;
+}
+
 export class KeyboardShortcuts {
-  private handler: ShortcutHandler | null = null;
-  private boundKeyHandler: ((e: KeyboardEvent) => void) | null = null;
-  private activeTextarea: HTMLTextAreaElement | null = null;
+  // Track handlers per textarea to avoid memory leaks
+  private registeredHandlers = new Map<HTMLTextAreaElement, RegisteredHandler>();
 
   /**
    * Register keyboard shortcuts for a textarea
    */
   register(textarea: HTMLTextAreaElement, handler: ShortcutHandler): void {
-    this.handler = handler;
-    this.activeTextarea = textarea;
+    // Clean up existing handler if any
+    this.unregister(textarea);
 
-    this.boundKeyHandler = (e: KeyboardEvent) => {
+    const keydownListener = (e: KeyboardEvent) => {
       // Only handle if the textarea is focused
       if (document.activeElement !== textarea) return;
 
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = isMacOS();
       const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
 
       for (const shortcut of SHORTCUTS) {
@@ -87,33 +103,42 @@ export class KeyboardShortcuts {
         ) {
           e.preventDefault();
           e.stopPropagation();
-          this.handler?.(shortcut.action, textarea);
+          handler(shortcut.action, textarea);
           return;
         }
       }
     };
 
-    textarea.addEventListener('keydown', this.boundKeyHandler);
+    textarea.addEventListener('keydown', keydownListener);
+    this.registeredHandlers.set(textarea, { handler, keydownListener });
   }
 
   /**
-   * Unregister keyboard shortcuts
+   * Unregister keyboard shortcuts for a specific textarea
    */
   unregister(textarea: HTMLTextAreaElement): void {
-    if (this.boundKeyHandler) {
-      textarea.removeEventListener('keydown', this.boundKeyHandler);
-      this.boundKeyHandler = null;
+    const registered = this.registeredHandlers.get(textarea);
+    if (registered) {
+      textarea.removeEventListener('keydown', registered.keydownListener);
+      this.registeredHandlers.delete(textarea);
     }
-    this.handler = null;
-    this.activeTextarea = null;
+  }
+
+  /**
+   * Unregister all keyboard shortcuts (cleanup on page unload)
+   */
+  unregisterAll(): void {
+    for (const [textarea, registered] of this.registeredHandlers) {
+      textarea.removeEventListener('keydown', registered.keydownListener);
+    }
+    this.registeredHandlers.clear();
   }
 
   /**
    * Get all shortcut definitions for display
    */
   static getShortcuts(): Array<{ keys: string; description: string }> {
-    const isMac = typeof navigator !== 'undefined' &&
-                  navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isMac = isMacOS();
     const cmdKey = isMac ? '⌘' : 'Ctrl';
 
     return SHORTCUTS.map(s => {

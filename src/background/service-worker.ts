@@ -18,37 +18,65 @@ interface WasmModule {
   get_available_rules(): string;
 }
 
-// Global state
+// Type guard for WASM module validation
+function isValidWasmModule(obj: unknown): obj is WasmModule {
+  if (!obj || typeof obj !== 'object') return false;
+  const mod = obj as Record<string, unknown>;
+  return (
+    typeof mod.Linter === 'function' &&
+    typeof mod.get_version === 'function' &&
+    typeof mod.get_available_rules === 'function'
+  );
+}
+
+// Global state - note: service workers can be terminated at any time
+// State will be re-initialized on next activation
 let wasmModule: WasmModule | null = null;
 let linter: WasmLinter | null = null;
 let lastConfigHash: string = '';
 let initPromise: Promise<void> | null = null;
+let initFailed: boolean = false;
 
 // Import WASM module statically (bundled at build time)
 import * as wasmBindings from '../../wasm/rumdl_lib.js';
 
-// Initialize the WASM module
+// Initialize the WASM module with proper error handling
 async function initializeWasm(): Promise<void> {
+  // Already initialized
   if (wasmModule) return;
+
+  // Previous init failed permanently
+  if (initFailed) {
+    throw new Error('WASM initialization previously failed');
+  }
+
+  // Init in progress - wait for it
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     try {
-      console.log('[rumdl] Initializing WASM module...');
-
       // Fetch the WASM binary
       const wasmPath = chrome.runtime.getURL('wasm/rumdl_lib_bg.wasm');
       const wasmResponse = await fetch(wasmPath);
+
+      if (!wasmResponse.ok) {
+        throw new Error(`Failed to fetch WASM: ${wasmResponse.status}`);
+      }
+
       const wasmBuffer = await wasmResponse.arrayBuffer();
 
       // Initialize with the WASM binary
       await wasmBindings.default(wasmBuffer);
 
-      wasmModule = wasmBindings as unknown as WasmModule;
+      // Validate the module has expected shape
+      if (!isValidWasmModule(wasmBindings)) {
+        throw new Error('WASM module does not have expected interface');
+      }
 
-      console.log('[rumdl] WASM module initialized, version:', wasmModule.get_version());
+      wasmModule = wasmBindings;
     } catch (error) {
-      console.error('[rumdl] Failed to initialize WASM:', error);
+      // Mark as permanently failed to avoid retry loops
+      initFailed = true;
       initPromise = null;
       throw error;
     }
@@ -59,6 +87,10 @@ async function initializeWasm(): Promise<void> {
 
 // Create or update the linter instance based on config
 function getLinter(config: LinterConfig): WasmLinter {
+  if (!wasmModule) {
+    throw new Error('WASM module not initialized');
+  }
+
   const configHash = JSON.stringify(config);
 
   if (!linter || configHash !== lastConfigHash) {
@@ -66,31 +98,24 @@ function getLinter(config: LinterConfig): WasmLinter {
       try {
         linter.free();
       } catch {
-        // Ignore free errors
+        // Ignore free errors - WASM memory may already be cleaned up
       }
     }
-    linter = new wasmModule!.Linter(config);
+    linter = new wasmModule.Linter(config);
     lastConfigHash = configHash;
   }
 
   return linter;
 }
 
-// Convert user config to linter config
-function toLinterConfig(config: RumdlConfig): LinterConfig {
-  const linterConfig: LinterConfig = {
-    disable: config.disabledRules,
-    enable: config.enabledRules.length > 0 ? config.enabledRules : undefined,
-    'line-length': config.lineLength,
-    flavor: config.flavor,
-  };
-
-  // Add rule-specific configs
-  for (const [ruleName, ruleConfig] of Object.entries(config.ruleConfigs)) {
-    linterConfig[ruleName] = ruleConfig;
+// Safely parse JSON with error handling
+function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch (error) {
+    console.error('[rumdl] JSON parse error:', error);
+    return fallback;
   }
-
-  return linterConfig;
 }
 
 // Handle lint request
@@ -103,7 +128,7 @@ async function handleLint(content: string, config: LinterConfig): Promise<LintWa
 
   const linterInstance = getLinter(config);
   const resultJson = linterInstance.check(content);
-  return JSON.parse(resultJson);
+  return safeJsonParse<LintWarning[]>(resultJson, []);
 }
 
 // Handle fix request
@@ -138,7 +163,7 @@ async function handleGetRules(): Promise<RuleInfo[]> {
   }
 
   const rulesJson = wasmModule.get_available_rules();
-  return JSON.parse(rulesJson);
+  return safeJsonParse<RuleInfo[]>(rulesJson, []);
 }
 
 // Message handler
@@ -207,9 +232,7 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-// Initialize WASM on service worker start
+// Initialize WASM on service worker start (best effort)
 initializeWasm().catch(error => {
   console.error('[rumdl] Failed to initialize on startup:', error);
 });
-
-console.log('[rumdl] Service worker loaded');

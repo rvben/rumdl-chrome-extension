@@ -53,6 +53,9 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
     Info: '#89b4fa'
   }[warning.severity];
 
+  const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');
+  const escapedSeverity = escapeHtml(warning.severity);
+
   tip.innerHTML = `
     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
       <span style="
@@ -64,11 +67,11 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
         font-size: 11px;
         font-weight: 600;
         font-family: ui-monospace, SFMono-Regular, monospace;
-      ">${warning.rule_name || 'rumdl'}</span>
+      ">${escapedRuleName}</span>
       <span style="
         color: ${severityColor};
         font-weight: 500;
-      ">${warning.severity}</span>
+      ">${escapedSeverity}</span>
     </div>
     <div style="color: #e6edf3;">${escapeHtml(warning.message)}</div>
     ${warning.fix ? `

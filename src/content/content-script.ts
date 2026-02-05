@@ -8,7 +8,19 @@ import { WarningPanel } from './warning-panel.js';
 import { KeyboardShortcuts, ShortcutAction } from './keyboard-shortcuts.js';
 import { showTooltip, hideTooltip, destroyTooltip } from './tooltip.js';
 import { lint, fix, getConfig, ping } from '../shared/messages.js';
-import type { LintWarning, RumdlConfig, LinterConfig } from '../shared/types.js';
+import { toLinterConfig } from '../shared/config-utils.js';
+import type { LintWarning, RumdlConfig } from '../shared/types.js';
+
+// Debug mode - set to false for production
+const DEBUG = false;
+
+function log(...args: unknown[]): void {
+  if (DEBUG) console.log('[rumdl]', ...args);
+}
+
+function logError(...args: unknown[]): void {
+  console.error('[rumdl]', ...args);
+}
 
 // Global state
 let config: RumdlConfig | null = null;
@@ -17,12 +29,15 @@ const lintOverlay = new LintOverlay();
 const gutterMarkers = new GutterMarkers();
 const keyboardShortcuts = new KeyboardShortcuts();
 
+// Storage listener reference for cleanup
+let storageListener: ((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void) | null = null;
+
 // Map of textarea to its state
 interface EditorState {
   overlay: HTMLElement;
   gutter: HTMLElement | null;
   panel: WarningPanel;
-  debounceTimer: number | null;
+  debounceTimer: ReturnType<typeof setTimeout> | null;
   lastContent: string;
   lastContentHash: string;
   warnings: LintWarning[];
@@ -41,7 +56,7 @@ const LINT_DEBOUNCE_MS = 150;
  * Initialize the extension
  */
 async function init(): Promise<void> {
-  console.log('[rumdl] Initializing content script...');
+  log('Initializing content script...');
 
   // Wait for service worker to be ready
   let ready = false;
@@ -52,21 +67,21 @@ async function init(): Promise<void> {
   }
 
   if (!ready) {
-    console.error('[rumdl] Service worker not responding');
+    logError('Service worker not responding');
     return;
   }
 
   // Load configuration
   try {
     config = await getConfig();
-    console.log('[rumdl] Config loaded:', config);
+    log('Config loaded:', config);
   } catch (error) {
-    console.error('[rumdl] Failed to load config:', error);
+    logError('Failed to load config:', error);
     return;
   }
 
   if (!config.enabled) {
-    console.log('[rumdl] Extension is disabled');
+    log('Extension is disabled');
     return;
   }
 
@@ -83,26 +98,62 @@ async function init(): Promise<void> {
   document.addEventListener('turbo:load', handleNavigation);
   document.addEventListener('pjax:end', handleNavigation);
 
-  // Listen for config changes
-  chrome.storage.onChanged.addListener((changes, area) => {
+  // Listen for config changes (store reference for cleanup)
+  storageListener = (changes, area) => {
     if (area === 'sync' && changes.rumdl_config) {
       config = changes.rumdl_config.newValue;
-      console.log('[rumdl] Config updated:', config);
+      log('Config updated:', config);
       // Re-lint all editors with new config
       for (const textarea of editorStates.keys()) {
         performLint(textarea);
       }
     }
-  });
+  };
+  chrome.storage.onChanged.addListener(storageListener);
 
-  console.log('[rumdl] Content script initialized');
+  // Clean up on page unload
+  window.addEventListener('beforeunload', cleanup);
+  window.addEventListener('pagehide', cleanup);
+
+  log('Content script initialized');
+}
+
+/**
+ * Clean up all resources
+ */
+function cleanup(): void {
+  log('Cleaning up all resources');
+
+  // Clean up all editors
+  for (const textarea of editorStates.keys()) {
+    cleanupEditor(textarea);
+  }
+
+  // Disconnect editor manager
+  editorManager.disconnect();
+
+  // Unregister all keyboard shortcuts
+  keyboardShortcuts.unregisterAll();
+
+  // Remove storage listener
+  if (storageListener) {
+    chrome.storage.onChanged.removeListener(storageListener);
+    storageListener = null;
+  }
+
+  // Remove navigation listeners
+  document.removeEventListener('turbo:load', handleNavigation);
+  document.removeEventListener('pjax:end', handleNavigation);
+
+  // Destroy global tooltip
+  destroyTooltip();
 }
 
 /**
  * Handle SPA navigation events
  */
 function handleNavigation(): void {
-  console.log('[rumdl] Navigation detected, rescanning for editors...');
+  log('Navigation detected, rescanning for editors...');
   editorManager.rescan();
 }
 
@@ -112,7 +163,7 @@ function handleNavigation(): void {
 function setupEditor(textarea: HTMLTextAreaElement): void {
   if (editorStates.has(textarea)) return;
 
-  console.log('[rumdl] Setting up editor:', textarea.name || textarea.id);
+  log('Setting up editor:', textarea.name || textarea.id);
 
   // Create overlay
   const overlay = lintOverlay.createOverlay(textarea);
@@ -148,13 +199,6 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
   // Add input listener with debounce
   textarea.addEventListener('input', () => scheduleLint(textarea));
 
-  // Add focus listener to show panel
-  textarea.addEventListener('focus', () => {
-    if (state.warnings.length > 0 && config) {
-      // Don't auto-show, user can use keyboard shortcut
-    }
-  });
-
   // Add paste handler for format on paste
   textarea.addEventListener('paste', (e) => handlePaste(e, textarea));
 
@@ -175,7 +219,7 @@ function cleanupEditor(textarea: HTMLTextAreaElement): void {
   const state = editorStates.get(textarea);
   if (!state) return;
 
-  console.log('[rumdl] Cleaning up editor:', textarea.name || textarea.id);
+  log('Cleaning up editor:', textarea.name || textarea.id);
 
   // Cancel pending lint
   if (state.debounceTimer) {
@@ -210,7 +254,7 @@ function scheduleLint(textarea: HTMLTextAreaElement): void {
     clearTimeout(state.debounceTimer);
   }
 
-  state.debounceTimer = window.setTimeout(() => {
+  state.debounceTimer = setTimeout(() => {
     performLint(textarea);
   }, LINT_DEBOUNCE_MS);
 }
@@ -226,6 +270,20 @@ function hashContent(content: string): string {
     hash = hash & hash; // Convert to 32bit integer
   }
   return hash.toString(36);
+}
+
+/**
+ * Get computed line height for a textarea
+ */
+function getLineHeight(textarea: HTMLTextAreaElement): number {
+  const computedStyle = window.getComputedStyle(textarea);
+  const lineHeight = parseFloat(computedStyle.lineHeight);
+  // If lineHeight is NaN (e.g., 'normal'), estimate from font size
+  if (isNaN(lineHeight)) {
+    const fontSize = parseFloat(computedStyle.fontSize) || 14;
+    return fontSize * 1.4; // Typical line-height ratio
+  }
+  return lineHeight;
 }
 
 /**
@@ -277,9 +335,9 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     state.panel.updateWarnings(warnings, lintTime);
     updateButton(state.button, warnings.length, lintTime);
 
-    console.log(`[rumdl] Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
+    log(`Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
   } catch (error) {
-    console.error('[rumdl] Lint failed:', error);
+    logError('Lint failed:', error);
   }
 }
 
@@ -338,7 +396,7 @@ async function formatDocument(textarea: HTMLTextAreaElement): Promise<void> {
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
   } catch (error) {
-    console.error('[rumdl] Format failed:', error);
+    logError('Format failed:', error);
   }
 }
 
@@ -375,8 +433,8 @@ function jumpToWarning(textarea: HTMLTextAreaElement, warning: LintWarning): voi
   textarea.focus();
   textarea.setSelectionRange(pos, pos);
 
-  // Scroll into view
-  const lineHeight = 20;
+  // Scroll into view using computed line height
+  const lineHeight = getLineHeight(textarea);
   const scrollTop = (warning.line - 5) * lineHeight;
   textarea.scrollTop = Math.max(0, scrollTop);
 }
@@ -475,28 +533,6 @@ function setupMarkerTooltips(overlay: HTMLElement, textarea: HTMLTextAreaElement
 }
 
 /**
- * Convert RumdlConfig to LinterConfig
- */
-function toLinterConfig(config: RumdlConfig): LinterConfig {
-  const linterConfig: LinterConfig = {
-    disable: config.disabledRules,
-    'line-length': config.lineLength,
-    flavor: config.flavor,
-  };
-
-  if (config.enabledRules.length > 0) {
-    linterConfig.enable = config.enabledRules;
-  }
-
-  // Add rule-specific configs
-  for (const [ruleName, ruleConfig] of Object.entries(config.ruleConfigs)) {
-    linterConfig[ruleName] = ruleConfig;
-  }
-
-  return linterConfig;
-}
-
-/**
  * Create a lint status button near the textarea
  */
 function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
@@ -509,11 +545,12 @@ function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'rumdl-status-btn';
+  button.setAttribute('aria-label', 'rumdl lint status');
   button.innerHTML = `
-    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
       <path d="M8 0a8 8 0 110 16A8 8 0 018 0zm0 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM8 7a1 1 0 011 1v3a1 1 0 01-2 0V8a1 1 0 011-1zm0-3.5a1 1 0 110 2 1 1 0 010-2z"/>
     </svg>
-    <span class="rumdl-status-count">0</span>
+    <span class="rumdl-status-count" aria-live="polite">0</span>
     <span class="rumdl-status-time"></span>
   `;
   button.title = 'rumdl: No issues';
@@ -567,5 +604,5 @@ function updateButton(button: HTMLElement | null, count: number, lintTime: numbe
 
 // Start the extension
 init().catch(error => {
-  console.error('[rumdl] Initialization failed:', error);
+  logError('Initialization failed:', error);
 });
