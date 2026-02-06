@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "package": "npm run build && cd .. && zip -r rumdl-github-extension.zip chrome-extension -x '*.ts' -x 'node_modules/*' -x 'src/*' -x 'tsconfig.json' -x 'package*.json' -x 'scripts/*'"
+    "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ wasm/ -x '*.svg'"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
