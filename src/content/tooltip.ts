@@ -32,6 +32,11 @@ function ensureTooltip(): HTMLElement {
     transition: opacity 0.15s ease, transform 0.15s ease;
   `;
 
+  // Hide tooltip when mouse leaves it
+  tooltip.addEventListener('mouseleave', () => {
+    hideTooltip();
+  });
+
   document.body.appendChild(tooltip);
   return tooltip;
 }
@@ -119,7 +124,12 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
 /**
  * Show tooltip for multiple warnings (used by gutter dots)
  */
-export function showWarningsTooltip(warnings: LintWarning[], x: number, y: number): void {
+export function showWarningsTooltip(
+  warnings: LintWarning[],
+  x: number,
+  y: number,
+  onFix?: (warning: LintWarning) => void
+): void {
   if (hideTimeout) {
     clearTimeout(hideTimeout);
     hideTimeout = null;
@@ -127,7 +137,10 @@ export function showWarningsTooltip(warnings: LintWarning[], x: number, y: numbe
 
   const tip = ensureTooltip();
 
-  const warningsHtml = warnings.map(warning => {
+  // Make tooltip interactive if we have fix callbacks
+  tip.style.pointerEvents = onFix ? 'auto' : 'none';
+
+  const warningsHtml = warnings.map((warning, index) => {
     const severityColor = {
       Error: 'var(--color-danger-fg, #cf222e)',
       Warning: 'var(--color-attention-fg, #9a6700)',
@@ -135,15 +148,31 @@ export function showWarningsTooltip(warnings: LintWarning[], x: number, y: numbe
     }[warning.severity];
 
     const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');
+    const hasFix = warning.fix && onFix;
 
     return `
-      <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--color-border-muted, #d0d7de);">
-        <span style="
-          color: ${severityColor};
-          font-weight: 600;
-          font-family: ui-monospace, SFMono-Regular, monospace;
-          font-size: 11px;
-        ">${escapedRuleName}</span>
+      <div class="rumdl-tooltip-warning" data-index="${index}" style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--color-border-muted, #d0d7de);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${hasFix ? `
+            <button class="rumdl-tooltip-fix" data-index="${index}" style="
+              padding: 2px 6px;
+              font-size: 11px;
+              font-weight: 500;
+              color: #fff;
+              background: var(--color-success-emphasis, #1f883d);
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              flex-shrink: 0;
+            ">Fix</button>
+          ` : ''}
+          <span style="
+            color: ${severityColor};
+            font-weight: 600;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            font-size: 11px;
+          ">${escapedRuleName}</span>
+        </div>
         <div style="color: var(--color-fg-default, #1f2328); margin-top: 2px;">${escapeHtml(warning.message)}</div>
       </div>
     `;
@@ -154,8 +183,20 @@ export function showWarningsTooltip(warnings: LintWarning[], x: number, y: numbe
   tip.style.color = 'var(--color-fg-default, #1f2328)';
   tip.style.border = '1px solid var(--color-border-default, #d0d7de)';
 
+  // Add fix button handlers
+  if (onFix) {
+    tip.querySelectorAll('.rumdl-tooltip-fix').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt((btn as HTMLElement).dataset.index || '0', 10);
+        onFix(warnings[index]);
+        hideTooltip();
+      });
+    });
+  }
+
   // Remove last border
-  const lastDiv = tip.querySelector('div:last-child') as HTMLElement;
+  const lastDiv = tip.querySelector('.rumdl-tooltip-warning:last-child') as HTMLElement;
   if (lastDiv) {
     lastDiv.style.marginBottom = '0';
     lastDiv.style.paddingBottom = '0';
@@ -163,9 +204,6 @@ export function showWarningsTooltip(warnings: LintWarning[], x: number, y: numbe
   }
 
   // Position tooltip
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-
   let left = x + 12;
   let top = y - 8;
 

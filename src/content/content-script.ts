@@ -308,7 +308,17 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     // Update UI
     state.panel.updateWarnings(warnings, lintTime);
     updateButton(state.button, warnings.length, lintTime);
-    gutterMarkers.render(state.gutter, textarea, warnings);
+
+    // Fix callback for gutter tooltip
+    const handleFix = (warning: LintWarning) => {
+      if (!warning.fix) return;
+      const { start, end } = warning.fix.range;
+      const { replacement } = warning.fix;
+      textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
 
     log(`Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
   } catch (error) {

@@ -93,7 +93,12 @@ export class GutterMarkers {
   /**
    * Render gutter markers for warnings
    */
-  render(gutter: HTMLElement, textarea: HTMLTextAreaElement, warnings: LintWarning[]): void {
+  render(
+    gutter: HTMLElement,
+    textarea: HTMLTextAreaElement,
+    warnings: LintWarning[],
+    onFix?: (warning: LintWarning) => void
+  ): void {
     gutter.innerHTML = '';
 
     if (warnings.length === 0) return;
@@ -120,13 +125,19 @@ export class GutterMarkers {
       const top = (line - 1) * state.lineHeight + (state.lineHeight / 2) - 4;
       marker.style.top = `${top}px`;
 
-      // Custom tooltip on hover
-      marker.addEventListener('mouseenter', (e) => {
+      // Custom tooltip on hover with fix callback
+      marker.addEventListener('mouseenter', () => {
         const rect = marker.getBoundingClientRect();
-        showWarningsTooltip(lineWarningList, rect.right, rect.top);
+        showWarningsTooltip(lineWarningList, rect.right, rect.top, onFix);
       });
-      marker.addEventListener('mouseleave', () => {
-        hideTooltip();
+      marker.addEventListener('mouseleave', (e) => {
+        // Delay hide to allow moving to tooltip
+        setTimeout(() => {
+          const tooltip = document.querySelector('.rumdl-tooltip');
+          if (!tooltip?.matches(':hover')) {
+            hideTooltip();
+          }
+        }, 100);
       });
 
       gutter.appendChild(marker);
