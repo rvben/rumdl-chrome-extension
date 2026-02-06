@@ -1,7 +1,7 @@
 {
-  "name": "rumdl-github-extension",
+  "name": "rumdl-chrome-extension",
   "version": "1.0.0",
-  "description": "Fast Markdown linting for GitHub issues, PRs, and comments",
+  "description": "Real-time Markdown linting with auto-fix for GitHub, GitLab, and Reddit",
   "type": "module",
   "scripts": {
     "build": "npm run build:wasm && node scripts/build.js",
