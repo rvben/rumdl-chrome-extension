@@ -246,21 +246,34 @@ export class WarningPanel {
     const value = this.textarea.value;
     this.textarea.value = value.slice(0, start) + replacement + value.slice(end);
 
-    // Trigger input event to re-lint
-    this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    // Trigger input event to re-lint (composed: true for shadow DOM)
+    this.textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
   }
 
   /**
    * Fix all auto-fixable warnings
    */
   private async fixAll(): Promise<void> {
-    if (!this.textarea || !this.config) return;
+    console.log('[rumdl] fixAll called, textarea:', !!this.textarea, 'config:', !!this.config);
+
+    if (!this.textarea || !this.config) {
+      console.log('[rumdl] fixAll: missing textarea or config');
+      return;
+    }
 
     try {
-      const fixed = await fix(this.textarea.value, this.config);
-      if (fixed !== this.textarea.value) {
+      const originalValue = this.textarea.value;
+      console.log('[rumdl] fixAll: calling fix with', originalValue.length, 'chars');
+      const fixed = await fix(originalValue, this.config);
+      console.log('[rumdl] fixAll: received', fixed.length, 'chars, changed:', fixed !== originalValue);
+
+      if (fixed !== originalValue) {
         this.textarea.value = fixed;
-        this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        // Use composed: true to cross shadow DOM boundaries
+        this.textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        console.log('[rumdl] fixAll: applied fix successfully');
+      } else {
+        console.log('[rumdl] fixAll: no changes needed');
       }
     } catch (error) {
       console.error('[rumdl] Fix all failed:', error);
@@ -275,6 +288,10 @@ export class WarningPanel {
 
     const rect = textarea.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Calculate a sensible max-height (at least 300px, capped at 500px)
+    const maxPanelHeight = Math.min(500, Math.max(300, viewportHeight - 40));
 
     // Position to the right of the textarea if space allows, otherwise bottom-right fixed
     if (rect.right + 320 < viewportWidth) {
@@ -282,14 +299,14 @@ export class WarningPanel {
         position: fixed;
         top: ${Math.max(10, rect.top)}px;
         left: ${rect.right + 10}px;
-        max-height: ${Math.min(rect.height, 500)}px;
+        max-height: ${maxPanelHeight}px;
       `;
     } else {
       this.panel.style.cssText = `
         position: fixed;
         bottom: 20px;
         right: 20px;
-        max-height: 400px;
+        max-height: ${maxPanelHeight}px;
       `;
     }
   }

@@ -204,6 +204,8 @@ export function showWarningsTooltip(
   }
 
   // Position tooltip
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
   let left = x + 12;
   let top = y - 8;
 
@@ -229,6 +231,9 @@ export function showWarningsTooltip(
  */
 export function hideTooltip(): void {
   if (!tooltip) return;
+
+  // Immediately disable pointer events to prevent blocking clicks
+  tooltip.style.pointerEvents = 'none';
 
   hideTimeout = window.setTimeout(() => {
     if (tooltip) {

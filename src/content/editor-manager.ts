@@ -47,17 +47,19 @@ const GITLAB_EDITOR_SELECTORS = [
   'textarea.js-vue-markdown-field',
 ];
 
-// Reddit uses contenteditable - requires different handling
-// For now, we'll try to detect markdown mode textareas
+// Reddit uses web components with Shadow DOM for the new editor
+// We need special handling to query into shadow roots
 const REDDIT_EDITOR_SELECTORS = [
-  // Markdown mode textarea (when user switches from fancy pants editor)
-  'textarea[placeholder*="markdown"]',
-  'textarea[data-testid="markdown-textarea"]',
-  // Old Reddit uses textareas
+  // Old Reddit uses textareas (still works with regular selectors)
   'textarea.usertext-edit',
   'textarea[name="text"]',
-  // Comment textareas
   'textarea.c-form-control',
+];
+
+// Reddit web components that contain textareas in shadow DOM
+const REDDIT_SHADOW_COMPONENTS = [
+  'shreddit-markdown-composer',
+  'shreddit-composer',
 ];
 
 // Get selectors based on current site
@@ -88,6 +90,7 @@ const COMBINED_SELECTOR = [
 
 export class EditorManager {
   private observers: Map<HTMLTextAreaElement, MutationObserver> = new Map();
+  private shadowObservers: Map<Element, MutationObserver> = new Map();
   private knownEditors: Set<HTMLTextAreaElement> = new Set();
   private callback: EditorCallback | null = null;
   private documentObserver: MutationObserver | null = null;
@@ -96,6 +99,7 @@ export class EditorManager {
    * Start observing for markdown editors
    */
   observe(callback: EditorCallback): void {
+    console.log('[rumdl] EditorManager.observe() starting');
     this.callback = callback;
 
     // Find existing editors
@@ -121,6 +125,21 @@ export class EditorManager {
             if (element.querySelector && element.querySelector(COMBINED_SELECTOR)) {
               shouldScan = true;
               break;
+            }
+
+            // Check for Reddit shadow DOM components
+            const site = getCurrentSite();
+            if (site === 'reddit') {
+              for (const componentSelector of REDDIT_SHADOW_COMPONENTS) {
+                if (element.matches && element.matches(componentSelector)) {
+                  shouldScan = true;
+                  break;
+                }
+                if (element.querySelector && element.querySelector(componentSelector)) {
+                  shouldScan = true;
+                  break;
+                }
+              }
             }
           }
         }
@@ -169,6 +188,12 @@ export class EditorManager {
     }
     this.observers.clear();
 
+    // Clean up shadow root observers
+    for (const observer of this.shadowObservers.values()) {
+      observer.disconnect();
+    }
+    this.shadowObservers.clear();
+
     // Notify removal of all editors
     for (const editor of this.knownEditors) {
       this.callback?.(editor, 'removed');
@@ -183,14 +208,36 @@ export class EditorManager {
    */
   rescan(): void {
     // Remove editors that are no longer in the DOM
+    // For shadow DOM editors, check if their host component still exists
     for (const editor of this.knownEditors) {
-      if (!document.contains(editor)) {
+      const isInDOM = document.contains(editor);
+      const isInShadowDOM = this.isEditorInShadowDOM(editor);
+
+      if (!isInDOM && !isInShadowDOM) {
         this.handleRemovedEditor(editor);
+      }
+    }
+
+    // Clean up shadow observers for removed components
+    for (const [component, observer] of this.shadowObservers) {
+      if (!document.contains(component)) {
+        observer.disconnect();
+        this.shadowObservers.delete(component);
       }
     }
 
     // Find new editors
     this.scanForEditors();
+  }
+
+  private isEditorInShadowDOM(editor: HTMLTextAreaElement): boolean {
+    // Check if editor is inside a shadow root of a known component
+    const rootNode = editor.getRootNode();
+    if (rootNode instanceof ShadowRoot) {
+      const host = rootNode.host;
+      return document.contains(host);
+    }
+    return false;
   }
 
   /**
@@ -201,6 +248,7 @@ export class EditorManager {
   }
 
   private scanForEditors(): void {
+    // Scan regular DOM for editors
     const editors = document.querySelectorAll<HTMLTextAreaElement>(COMBINED_SELECTOR);
 
     for (const editor of editors) {
@@ -208,9 +256,111 @@ export class EditorManager {
         this.handleNewEditor(editor);
       }
     }
+
+    // Scan Shadow DOM for Reddit editors
+    const site = getCurrentSite();
+    if (site === 'reddit') {
+      this.scanRedditShadowDOM();
+    }
+  }
+
+  private scanRedditShadowDOM(): void {
+    console.log('[rumdl] Scanning Reddit shadow DOM...');
+    for (const componentSelector of REDDIT_SHADOW_COMPONENTS) {
+      const components = document.querySelectorAll(componentSelector);
+      console.log(`[rumdl] Found ${components.length} ${componentSelector} components`);
+
+      for (const component of components) {
+        this.scanShadowRootRecursively(component);
+      }
+    }
+  }
+
+  private scanShadowRootRecursively(element: Element, depth: number = 0): void {
+    if (depth > 5) return; // Prevent infinite recursion
+
+    const shadowRoot = element.shadowRoot;
+    if (!shadowRoot) return;
+
+    console.log(`[rumdl] Scanning shadow root of <${element.tagName.toLowerCase()}> (depth ${depth})`);
+
+    // Look for textareas directly in this shadow root
+    const textareas = shadowRoot.querySelectorAll<HTMLTextAreaElement>('textarea');
+    console.log(`[rumdl] Found ${textareas.length} textareas at depth ${depth}`);
+
+    for (const textarea of textareas) {
+      if (!this.knownEditors.has(textarea)) {
+        console.log('[rumdl] Found textarea:', textarea.placeholder || textarea.name || 'unnamed');
+        this.handleNewEditor(textarea);
+      }
+    }
+
+    // Set up observer on this shadow root
+    if (!this.shadowObservers.has(element)) {
+      this.observeShadowRoot(element, shadowRoot);
+    }
+
+    // Recursively search nested web components with shadow roots
+    const nestedComponents = shadowRoot.querySelectorAll('*');
+    for (const nested of nestedComponents) {
+      if (nested.shadowRoot) {
+        this.scanShadowRootRecursively(nested, depth + 1);
+      }
+    }
+  }
+
+  private observeShadowRoot(component: Element, shadowRoot: ShadowRoot): void {
+    // Log initial content of shadow root
+    console.log(`[rumdl] Observing <${component.tagName.toLowerCase()}>, innerHTML:`, shadowRoot.innerHTML.slice(0, 300));
+
+    let mutationCount = 0;
+    const observer = new MutationObserver(() => {
+      mutationCount++;
+      // Only log every 10th mutation to reduce spam
+      if (mutationCount % 10 === 1) {
+        console.log(`[rumdl] Mutation #${mutationCount} in <${component.tagName.toLowerCase()}>`);
+      }
+
+      // Check for textareas inside shadow DOM
+      const textareas = shadowRoot.querySelectorAll<HTMLTextAreaElement>('textarea');
+      if (textareas.length > 0) {
+        console.log(`[rumdl] Found ${textareas.length} textarea(s) in <${component.tagName.toLowerCase()}>`);
+        for (const textarea of textareas) {
+          const isKnown = this.knownEditors.has(textarea);
+          console.log(`[rumdl] Textarea "${textarea.placeholder || 'unnamed'}" - known: ${isKnown}`);
+          if (!isKnown) {
+            console.log('[rumdl] Adding new textarea to tracking');
+            this.handleNewEditor(textarea);
+          }
+        }
+      }
+
+      // Check for contenteditable elements (Reddit might use these)
+      const editables = shadowRoot.querySelectorAll<HTMLElement>('[contenteditable="true"]');
+      if (editables.length > 0 && mutationCount === 1) {
+        console.log(`[rumdl] Found ${editables.length} contenteditable element(s) - not supported yet`);
+      }
+
+      // Also check for new nested shadow roots
+      const nestedComponents = shadowRoot.querySelectorAll('*');
+      for (const nested of nestedComponents) {
+        if (nested.shadowRoot && !this.shadowObservers.has(nested)) {
+          this.scanShadowRootRecursively(nested, 1);
+        }
+      }
+    });
+
+    observer.observe(shadowRoot, {
+      childList: true,
+      subtree: true
+    });
+
+    this.shadowObservers.set(component, observer);
   }
 
   private handleNewEditor(editor: HTMLTextAreaElement): void {
+    console.log('[rumdl] handleNewEditor called for:', editor.placeholder || editor.name || editor.id || 'unnamed');
+
     // Mark as known
     this.knownEditors.add(editor);
 
@@ -218,10 +368,11 @@ export class EditorManager {
     editor.dataset.rumdlManaged = 'true';
 
     // Notify callback
+    console.log('[rumdl] Callback exists:', !!this.callback);
     this.callback?.(editor, 'added');
 
     const site = getCurrentSite();
-    console.log(`[rumdl] New editor detected on ${site}:`, editor.name || editor.id || 'unnamed');
+    console.log(`[rumdl] New editor detected on ${site}:`, editor.placeholder || editor.name || editor.id || 'unnamed');
   }
 
   private handleRemovedEditor(editor: HTMLTextAreaElement): void {

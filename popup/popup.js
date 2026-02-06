@@ -8,8 +8,8 @@ const DEFAULT_CONFIG = {
   enabledRules: [],
   ruleConfigs: {},
   autoFormat: false,
-  showInlineMarkers: true,
-  showGutterIcons: true
+  showGutterIcons: true,
+  reflow: false
 };
 
 const STORAGE_KEY = 'rumdl_config';
@@ -23,9 +23,9 @@ const elements = {
   lineLength: document.getElementById('lineLength'),
   disabledRules: document.getElementById('disabledRules'),
   enabledRules: document.getElementById('enabledRules'),
-  showInlineMarkers: document.getElementById('showInlineMarkers'),
   showGutterIcons: document.getElementById('showGutterIcons'),
   autoFormat: document.getElementById('autoFormat'),
+  reflow: document.getElementById('reflow'),
   resetBtn: document.getElementById('resetBtn'),
   exportBtn: document.getElementById('exportBtn'),
   importBtn: document.getElementById('importBtn'),
@@ -74,9 +74,9 @@ function updateUI(config) {
   elements.lineLength.value = config.lineLength;
   elements.disabledRules.value = config.disabledRules.join(', ');
   elements.enabledRules.value = config.enabledRules.join(', ');
-  elements.showInlineMarkers.checked = config.showInlineMarkers;
   elements.showGutterIcons.checked = config.showGutterIcons;
   elements.autoFormat.checked = config.autoFormat;
+  elements.reflow.checked = config.reflow;
 
   // Update rules list checkboxes
   updateRulesListUI(config);
@@ -97,8 +97,8 @@ function getConfigFromUI() {
     enabledRules: parseRuleList(elements.enabledRules.value),
     ruleConfigs: {},
     autoFormat: elements.autoFormat.checked,
-    showInlineMarkers: elements.showInlineMarkers.checked,
-    showGutterIcons: elements.showGutterIcons.checked
+    showGutterIcons: elements.showGutterIcons.checked,
+    reflow: elements.reflow.checked
   };
 }
 
@@ -221,8 +221,8 @@ async function importConfig(file) {
     if (Array.isArray(config.disabledRules)) validConfig.disabledRules = config.disabledRules;
     if (Array.isArray(config.enabledRules)) validConfig.enabledRules = config.enabledRules;
     if (typeof config.autoFormat === 'boolean') validConfig.autoFormat = config.autoFormat;
-    if (typeof config.showInlineMarkers === 'boolean') validConfig.showInlineMarkers = config.showInlineMarkers;
     if (typeof config.showGutterIcons === 'boolean') validConfig.showGutterIcons = config.showGutterIcons;
+    if (typeof config.reflow === 'boolean') validConfig.reflow = config.reflow;
     if (typeof config.ruleConfigs === 'object') validConfig.ruleConfigs = config.ruleConfigs;
 
     await saveConfig(validConfig);
@@ -288,9 +288,9 @@ async function init() {
     updateRulesListUI(config);
   });
   elements.enabledRules.addEventListener('change', saveOnChange);
-  elements.showInlineMarkers.addEventListener('change', saveOnChange);
   elements.showGutterIcons.addEventListener('change', saveOnChange);
   elements.autoFormat.addEventListener('change', saveOnChange);
+  elements.reflow.addEventListener('change', saveOnChange);
 
   // Reset button
   elements.resetBtn.addEventListener('click', async () => {

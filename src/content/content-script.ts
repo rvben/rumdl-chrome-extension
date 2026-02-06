@@ -54,6 +54,7 @@ const LINT_DEBOUNCE_MS = 150;
  * Initialize the extension
  */
 async function init(): Promise<void> {
+  console.log('[rumdl] Content script starting on', window.location.hostname);
   log('Initializing content script...');
 
   // Wait for service worker to be ready
@@ -68,18 +69,19 @@ async function init(): Promise<void> {
     logError('Service worker not responding');
     return;
   }
+  console.log('[rumdl] Service worker ready');
 
   // Load configuration
   try {
     config = await getConfig();
-    log('Config loaded:', config);
+    console.log('[rumdl] Config loaded, enabled:', config.enabled);
   } catch (error) {
     logError('Failed to load config:', error);
     return;
   }
 
   if (!config.enabled) {
-    log('Extension is disabled');
+    console.log('[rumdl] Extension is disabled');
     return;
   }
 
@@ -166,18 +168,27 @@ function handleNavigation(): void {
  * Set up linting for a textarea
  */
 function setupEditor(textarea: HTMLTextAreaElement): void {
-  if (editorStates.has(textarea)) return;
+  console.log('[rumdl] setupEditor called for:', textarea.placeholder || textarea.name || textarea.id || 'unnamed');
+
+  if (editorStates.has(textarea)) {
+    console.log('[rumdl] Editor already set up, skipping');
+    return;
+  }
 
   log('Setting up editor:', textarea.name || textarea.id);
 
   // Create warning panel
   const panel = new WarningPanel();
+  console.log('[rumdl] Warning panel created');
 
   // Create gutter for inline markers
   const gutter = gutterMarkers.createGutter(textarea);
+  console.log('[rumdl] Gutter created:', !!gutter);
 
-  // Create status button in toolbar
-  const button = createLintButton(textarea);
+  // Create status button in toolbar (or floating badge for shadow DOM)
+  const isInShadowDOM = textarea.getRootNode() instanceof ShadowRoot;
+  const button = isInShadowDOM ? createFloatingBadge(textarea) : createLintButton(textarea);
+  console.log('[rumdl] Lint button/badge created:', !!button, isInShadowDOM ? '(floating)' : '(toolbar)');
 
   // Store state
   const state: EditorState = {
@@ -204,7 +215,9 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
   keyboardShortcuts.register(textarea, (action, ta) => handleShortcut(action, ta));
 
   // Initial lint
+  console.log('[rumdl] Starting initial lint');
   performLint(textarea);
+  console.log('[rumdl] Editor setup complete');
 }
 
 /**
@@ -322,14 +335,17 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
       const { start, end } = warning.fix.range;
       const { replacement } = warning.fix;
       textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     };
 
     gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
 
-    log(`Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
+    console.log(`[rumdl] Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
+    if (warnings.length > 0) {
+      console.log('[rumdl] First warning:', warnings[0]);
+    }
   } catch (error) {
-    logError('Lint failed:', error);
+    console.error('[rumdl] Lint failed:', error);
   }
 }
 
@@ -385,7 +401,7 @@ async function formatDocument(textarea: HTMLTextAreaElement): Promise<void> {
       // Try to maintain cursor position
       textarea.selectionStart = Math.min(cursorPos, fixed.length);
       textarea.selectionEnd = textarea.selectionStart;
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     }
   } catch (error) {
     logError('Format failed:', error);
@@ -459,7 +475,7 @@ function fixAtCursor(textarea: HTMLTextAreaElement): void {
 
     const value = textarea.value;
     textarea.value = value.slice(0, start) + replacement + value.slice(end);
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
 
     // Adjust cursor position
     const newPos = start + replacement.length;
@@ -514,6 +530,85 @@ function getToolbarSelectors(): string {
       // Try all selectors
       return '[role="toolbar"], .toolbar-commenting, .tabnav-tabs, .form-actions, .md-header, .js-md-preview-button, .md-header-toolbar';
   }
+}
+
+/**
+ * Create a floating badge for textareas in shadow DOM
+ */
+function createFloatingBadge(textarea: HTMLTextAreaElement): HTMLElement | null {
+  const badge = document.createElement('div');
+  badge.className = 'rumdl-floating-badge';
+  badge.setAttribute('aria-label', 'rumdl lint status');
+
+  // Use inline styles for shadow DOM compatibility
+  badge.style.cssText = `
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    z-index: 10;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    pointer-events: auto;
+    opacity: 0.7;
+  `;
+
+  badge.innerHTML = `
+    <span style="font-weight: 600;">rumdl</span>
+    <span class="rumdl-badge-count" style="
+      background: #2ea043;
+      color: white;
+      padding: 0 6px;
+      border-radius: 10px;
+      font-weight: 600;
+    ">0</span>
+  `;
+
+  badge.title = 'rumdl: No issues';
+
+  // Insert into the textarea's parent (inside shadow DOM)
+  const parent = textarea.parentElement;
+  if (parent) {
+    const parentPosition = getComputedStyle(parent).position;
+    if (parentPosition === 'static') {
+      parent.style.position = 'relative';
+    }
+    parent.appendChild(badge);
+  }
+
+  badge.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const state = editorStates.get(textarea);
+    if (state && config) {
+      if (state.isPanelVisible) {
+        state.panel.hide();
+        state.isPanelVisible = false;
+      } else {
+        state.panel.show(textarea, toLinterConfig(config));
+        state.panel.updateWarnings(state.warnings, state.lintTime);
+        state.isPanelVisible = true;
+      }
+    }
+  });
+
+  badge.addEventListener('mouseenter', () => {
+    badge.style.opacity = '1';
+  });
+
+  badge.addEventListener('mouseleave', () => {
+    badge.style.opacity = '0.7';
+  });
+
+  return badge;
 }
 
 /**
@@ -573,11 +668,19 @@ function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
 }
 
 /**
- * Update the lint status button
+ * Update the lint status button or floating badge
  */
 function updateButton(button: HTMLElement | null, count: number, lintTime: number): void {
   if (!button) return;
 
+  // Handle floating badge (shadow DOM)
+  const badgeCount = button.querySelector('.rumdl-badge-count') as HTMLElement;
+  if (badgeCount) {
+    badgeCount.textContent = count.toString();
+    badgeCount.style.background = count === 0 ? '#2ea043' : (count > 0 ? '#9a6700' : '#2ea043');
+  }
+
+  // Handle toolbar button
   const countEl = button.querySelector('.rumdl-status-count');
   if (countEl) {
     countEl.textContent = count.toString();
@@ -592,7 +695,9 @@ function updateButton(button: HTMLElement | null, count: number, lintTime: numbe
     ? `rumdl: No issues${lintTime > 0 ? ` (${lintTime.toFixed(0)}ms)` : ''}`
     : `rumdl: ${count} issue${count > 1 ? 's' : ''}${lintTime > 0 ? ` (${lintTime.toFixed(0)}ms)` : ''}`;
 
-  button.classList.toggle('has-warnings', count > 0);
+  if (button.classList) {
+    button.classList.toggle('has-warnings', count > 0);
+  }
 }
 
 // Start the extension

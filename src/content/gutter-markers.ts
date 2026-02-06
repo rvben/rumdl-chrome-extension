@@ -28,7 +28,9 @@ export class GutterMarkers {
     container.setAttribute('aria-hidden', 'true');
 
     const parent = textarea.parentElement;
+    console.log('[rumdl] Gutter parent element:', parent?.tagName, parent);
     if (!parent) {
+      console.log('[rumdl] No parent element for gutter');
       return container;
     }
 
@@ -51,6 +53,7 @@ export class GutterMarkers {
     const gutterLeft = Math.max(2, paddingLeft - dotWidth - gap);
 
     const syncDimensions = () => {
+      // Keep container narrow and only in the gutter area to avoid blocking clicks
       container.style.cssText = `
         position: absolute;
         top: ${textarea.offsetTop + paddingTop}px;
@@ -58,12 +61,13 @@ export class GutterMarkers {
         width: ${dotWidth}px;
         height: ${textarea.offsetHeight - paddingTop * 2}px;
         pointer-events: none;
-        overflow: hidden;
-        z-index: 2;
+        overflow: visible;
+        z-index: 10;
       `;
     };
 
     syncDimensions();
+    console.log('[rumdl] Gutter positioned:', container.style.cssText);
 
     const resizeObserver = new ResizeObserver(syncDimensions);
     resizeObserver.observe(textarea);
@@ -98,6 +102,49 @@ export class GutterMarkers {
   }
 
   /**
+   * Calculate visual Y positions for each line, accounting for text wrapping
+   */
+  private calculateLinePositions(textarea: HTMLTextAreaElement, lineHeight: number): number[] {
+    const content = textarea.value;
+    const lines = content.split('\n');
+    const computedStyle = getComputedStyle(textarea);
+
+    // Create a hidden div to measure text wrapping
+    const measureDiv = document.createElement('div');
+    measureDiv.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      width: ${textarea.clientWidth - parseFloat(computedStyle.paddingLeft) - parseFloat(computedStyle.paddingRight)}px;
+      font: ${computedStyle.font};
+      font-family: ${computedStyle.fontFamily};
+      font-size: ${computedStyle.fontSize};
+      line-height: ${computedStyle.lineHeight};
+    `;
+
+    // Append to the appropriate root (handles shadow DOM)
+    const rootNode = textarea.getRootNode();
+    const appendTarget = rootNode instanceof ShadowRoot
+      ? (rootNode.host.parentElement || document.body)
+      : document.body;
+    appendTarget.appendChild(measureDiv);
+
+    // Calculate cumulative Y position for each line
+    const positions: number[] = [];
+    let currentY = 0;
+
+    for (const line of lines) {
+      positions.push(currentY);
+      measureDiv.textContent = line || ' '; // Use space for empty lines
+      currentY += measureDiv.offsetHeight;
+    }
+
+    appendTarget.removeChild(measureDiv);
+    return positions;
+  }
+
+  /**
    * Render gutter markers for warnings
    */
   render(
@@ -107,11 +154,15 @@ export class GutterMarkers {
     onFix?: (warning: LintWarning) => void
   ): void {
     gutter.innerHTML = '';
+    console.log(`[rumdl] Rendering ${warnings.length} warnings to gutter`);
 
     if (warnings.length === 0) return;
 
     const state = gutterStates.get(textarea);
     if (!state) return;
+
+    // Calculate actual visual positions accounting for text wrapping
+    const linePositions = this.calculateLinePositions(textarea, state.lineHeight);
 
     // Group warnings by line
     const lineWarnings = new Map<number, LintWarning[]>();
@@ -125,19 +176,42 @@ export class GutterMarkers {
     for (const [line, lineWarningList] of lineWarnings) {
       const severity = this.getHighestSeverity(lineWarningList);
 
+      // Severity colors
+      const severityColors: Record<string, string> = {
+        error: '#cf222e',
+        warning: '#9a6700',
+        info: '#0969da'
+      };
+      const color = severityColors[severity.toLowerCase()] || severityColors.warning;
+
       const marker = document.createElement('div');
-      marker.className = `rumdl-gutter-dot rumdl-gutter-${severity.toLowerCase()}`;
+      // Use inline styles for shadow DOM compatibility
+      marker.style.cssText = `
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: ${color};
+        pointer-events: auto;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+      `;
 
-      // Center the dot vertically on the line (6px dot = 3px offset)
-      const top = (line - 1) * state.lineHeight + (state.lineHeight / 2) - 3;
+      // Get the visual Y position for this line, center the dot (6px dot = 3px offset)
+      const lineY = linePositions[line - 1] ?? (line - 1) * state.lineHeight;
+      const top = lineY + (state.lineHeight / 2) - 3;
       marker.style.top = `${top}px`;
+      marker.style.left = '0px';
 
-      // Custom tooltip on hover with fix callback
+      // Hover effect
       marker.addEventListener('mouseenter', () => {
+        marker.style.transform = 'scale(1.3)';
         const rect = marker.getBoundingClientRect();
         showWarningsTooltip(lineWarningList, rect.right, rect.top, onFix);
       });
-      marker.addEventListener('mouseleave', (e) => {
+      marker.addEventListener('mouseleave', () => {
+        marker.style.transform = 'scale(1)';
         // Delay hide to allow moving to tooltip
         setTimeout(() => {
           const tooltip = document.querySelector('.rumdl-tooltip');

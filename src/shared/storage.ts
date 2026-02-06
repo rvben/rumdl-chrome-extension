@@ -32,14 +32,14 @@ export function validateAndMergeConfig(stored: unknown): RumdlConfig {
   if (Array.isArray(obj.enabledRules) && obj.enabledRules.every(r => typeof r === 'string')) {
     config.enabledRules = obj.enabledRules;
   }
-  if (typeof obj.showInlineMarkers === 'boolean') {
-    config.showInlineMarkers = obj.showInlineMarkers;
-  }
   if (typeof obj.showGutterIcons === 'boolean') {
     config.showGutterIcons = obj.showGutterIcons;
   }
   if (typeof obj.autoFormat === 'boolean') {
     config.autoFormat = obj.autoFormat;
+  }
+  if (typeof obj.reflow === 'boolean') {
+    config.reflow = obj.reflow;
   }
   if (obj.ruleConfigs && typeof obj.ruleConfigs === 'object' && !Array.isArray(obj.ruleConfigs)) {
     // Only copy known safe keys (no __proto__, constructor, etc.)

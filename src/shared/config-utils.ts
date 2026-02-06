@@ -16,6 +16,14 @@ export function toLinterConfig(config: RumdlConfig): LinterConfig {
     linterConfig.enable = config.enabledRules;
   }
 
+  // Configure MD013 with reflow option
+  if (config.reflow) {
+    linterConfig['MD013'] = {
+      reflow: true,
+      'line-length': config.lineLength,
+    };
+  }
+
   // Add rule-specific configs
   for (const [ruleName, ruleConfig] of Object.entries(config.ruleConfigs)) {
     linterConfig[ruleName] = ruleConfig;

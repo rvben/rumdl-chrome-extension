@@ -39,8 +39,8 @@ export interface RumdlConfig {
   enabledRules: string[];
   ruleConfigs: Record<string, unknown>;
   autoFormat: boolean;
-  showInlineMarkers: boolean;
   showGutterIcons: boolean;
+  reflow: boolean;
 }
 
 export const DEFAULT_CONFIG: RumdlConfig = {
@@ -51,8 +51,8 @@ export const DEFAULT_CONFIG: RumdlConfig = {
   enabledRules: [],
   ruleConfigs: {},
   autoFormat: false,
-  showInlineMarkers: true,
-  showGutterIcons: true
+  showGutterIcons: true,
+  reflow: false
 };
 
 export interface RuleInfo {
