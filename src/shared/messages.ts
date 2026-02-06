@@ -1,6 +1,6 @@
 // Message passing utilities for extension communication
 
-import type { MessageType, MessageResponse, LintWarning, LinterConfig, RumdlConfig, RuleInfo } from './types.js';
+import type { MessageType, MessageResponse, LintWarning, LinterConfig, RumdlConfig, RuleInfo, ServiceWorkerStatus } from './types.js';
 
 // Send a message to the service worker and wait for response
 export async function sendMessage(message: MessageType): Promise<MessageResponse> {
@@ -83,4 +83,14 @@ export async function ping(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function getStatus(): Promise<ServiceWorkerStatus> {
+  const response = await sendMessage({ type: 'GET_STATUS' });
+  if (response.type === 'STATUS_RESULT') {
+    return response.status;
+  } else if (response.type === 'ERROR') {
+    throw new Error(response.message);
+  }
+  throw new Error('Unexpected response type');
 }

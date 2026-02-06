@@ -1,5 +1,12 @@
 // Editor Manager - detects and manages markdown editors across sites
 
+// Debug mode - set to false for production
+const DEBUG = false;
+
+function log(...args: unknown[]): void {
+  if (DEBUG) log('', ...args);
+}
+
 type EditorCallback = (editor: HTMLTextAreaElement, event: 'added' | 'removed') => void;
 
 // Detect current site
@@ -99,7 +106,7 @@ export class EditorManager {
    * Start observing for markdown editors
    */
   observe(callback: EditorCallback): void {
-    console.log('[rumdl] EditorManager.observe() starting');
+    log('EditorManager.observe() starting');
     this.callback = callback;
 
     // Find existing editors
@@ -265,7 +272,7 @@ export class EditorManager {
   }
 
   private scanRedditShadowDOM(): void {
-    console.log('[rumdl] Scanning Reddit shadow DOM...');
+    log('Scanning Reddit shadow DOM...');
     for (const componentSelector of REDDIT_SHADOW_COMPONENTS) {
       const components = document.querySelectorAll(componentSelector);
       console.log(`[rumdl] Found ${components.length} ${componentSelector} components`);
@@ -290,7 +297,7 @@ export class EditorManager {
 
     for (const textarea of textareas) {
       if (!this.knownEditors.has(textarea)) {
-        console.log('[rumdl] Found textarea:', textarea.placeholder || textarea.name || 'unnamed');
+        log('Found textarea:', textarea.placeholder || textarea.name || 'unnamed');
         this.handleNewEditor(textarea);
       }
     }
@@ -329,7 +336,7 @@ export class EditorManager {
           const isKnown = this.knownEditors.has(textarea);
           console.log(`[rumdl] Textarea "${textarea.placeholder || 'unnamed'}" - known: ${isKnown}`);
           if (!isKnown) {
-            console.log('[rumdl] Adding new textarea to tracking');
+            log('Adding new textarea to tracking');
             this.handleNewEditor(textarea);
           }
         }
@@ -359,7 +366,7 @@ export class EditorManager {
   }
 
   private handleNewEditor(editor: HTMLTextAreaElement): void {
-    console.log('[rumdl] handleNewEditor called for:', editor.placeholder || editor.name || editor.id || 'unnamed');
+    log('handleNewEditor called for:', editor.placeholder || editor.name || editor.id || 'unnamed');
 
     // Mark as known
     this.knownEditors.add(editor);
@@ -368,7 +375,7 @@ export class EditorManager {
     editor.dataset.rumdlManaged = 'true';
 
     // Notify callback
-    console.log('[rumdl] Callback exists:', !!this.callback);
+    log('Callback exists:', !!this.callback);
     this.callback?.(editor, 'added');
 
     const site = getCurrentSite();
@@ -388,6 +395,6 @@ export class EditorManager {
     // Notify callback
     this.callback?.(editor, 'removed');
 
-    console.log('[rumdl] Editor removed:', editor.name || editor.id || 'unnamed');
+    log('Editor removed:', editor.name || editor.id || 'unnamed');
   }
 }

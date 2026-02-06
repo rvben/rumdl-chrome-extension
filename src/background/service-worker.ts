@@ -1,7 +1,7 @@
 // Service worker for rumdl Chrome extension
 // Loads WASM module and handles linting requests from content scripts
 
-import type { MessageType, MessageResponse, LinterConfig, RumdlConfig, LintWarning, RuleInfo } from '../shared/types.js';
+import type { MessageType, MessageResponse, LinterConfig, RumdlConfig, LintWarning, RuleInfo, ServiceWorkerStatus } from '../shared/types.js';
 import { loadConfig, saveConfig } from '../shared/storage.js';
 
 // WASM module types
@@ -36,6 +36,8 @@ let linter: WasmLinter | null = null;
 let lastConfigHash: string = '';
 let initPromise: Promise<void> | null = null;
 let initFailed: boolean = false;
+let initError: string | null = null;
+let wasmVersion: string | null = null;
 
 // Import WASM module - use initSync to avoid dynamic import issues in service workers
 import { initSync, Linter, get_version, get_available_rules } from '../../wasm/rumdl_lib.js';
@@ -81,10 +83,14 @@ async function initializeWasm(): Promise<void> {
       }
 
       wasmModule = moduleWrapper;
+      wasmVersion = moduleWrapper.get_version();
+      console.log('[rumdl] WASM initialized, version:', wasmVersion);
     } catch (error) {
-      // Mark as permanently failed to avoid retry loops
+      // Mark as permanently failed and store error message
       initFailed = true;
+      initError = error instanceof Error ? error.message : 'Unknown WASM initialization error';
       initPromise = null;
+      console.error('[rumdl] WASM initialization failed:', initError);
       throw error;
     }
   })();
@@ -173,6 +179,15 @@ async function handleGetRules(): Promise<RuleInfo[]> {
   return safeJsonParse<RuleInfo[]>(rulesJson, []);
 }
 
+// Handle get status request - returns WASM health status
+function handleGetStatus(): ServiceWorkerStatus {
+  return {
+    wasmInitialized: wasmModule !== null,
+    wasmError: initError,
+    version: wasmVersion,
+  };
+}
+
 // Message handler
 chrome.runtime.onMessage.addListener(
   (message: MessageType, _sender, sendResponse: (response: MessageResponse) => void) => {
@@ -214,6 +229,12 @@ chrome.runtime.onMessage.addListener(
           case 'GET_RULES': {
             const rules = await handleGetRules();
             sendResponse({ type: 'RULES_RESULT', rules });
+            break;
+          }
+
+          case 'GET_STATUS': {
+            const status = handleGetStatus();
+            sendResponse({ type: 'STATUS_RESULT', status });
             break;
           }
 

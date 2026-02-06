@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 40 40">
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
   <!-- Document with folded corner - filled dark -->
   <path d="M6 3 L26 3 L34 11 L34 35 Q34 37 32 37 L8 37 Q6 37 6 35 Z"
         fill="#2D2D2D" stroke="#E5E5E5" stroke-width="2" stroke-linejoin="round"/>

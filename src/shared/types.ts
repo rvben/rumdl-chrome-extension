@@ -60,6 +60,13 @@ export interface RuleInfo {
   description: string;
 }
 
+// Service worker health status
+export interface ServiceWorkerStatus {
+  wasmInitialized: boolean;
+  wasmError: string | null;
+  version: string | null;
+}
+
 // Message types for communication between content script and service worker
 export type MessageType =
   | { type: 'LINT'; content: string; config: LinterConfig }
@@ -68,6 +75,7 @@ export type MessageType =
   | { type: 'SET_CONFIG'; config: Partial<RumdlConfig> }
   | { type: 'GET_VERSION' }
   | { type: 'GET_RULES' }
+  | { type: 'GET_STATUS' }
   | { type: 'PING' };
 
 export type MessageResponse =
@@ -76,5 +84,6 @@ export type MessageResponse =
   | { type: 'CONFIG_RESULT'; config: RumdlConfig }
   | { type: 'VERSION_RESULT'; version: string }
   | { type: 'RULES_RESULT'; rules: RuleInfo[] }
+  | { type: 'STATUS_RESULT'; status: ServiceWorkerStatus }
   | { type: 'PONG' }
   | { type: 'ERROR'; message: string };

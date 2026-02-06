@@ -26,26 +26,30 @@ export class WarningPanel {
 
     this.panel = document.createElement('div');
     this.panel.className = 'rumdl-panel';
+    this.panel.setAttribute('role', 'dialog');
+    this.panel.setAttribute('aria-labelledby', 'rumdl-panel-title');
+    this.panel.setAttribute('aria-describedby', 'rumdl-panel-content');
+    this.panel.setAttribute('tabindex', '-1');
     this.panel.innerHTML = `
       <div class="rumdl-panel-header">
-        <span class="rumdl-panel-title">
+        <span class="rumdl-panel-title" id="rumdl-panel-title">
           <span class="rumdl-logo">rumdl</span>
-          <span class="rumdl-count">0</span>
+          <span class="rumdl-count" aria-live="polite">0</span>
           <span class="rumdl-issues-label">issues</span>
-          <span class="rumdl-lint-time"></span>
+          <span class="rumdl-lint-time" aria-live="polite"></span>
         </span>
         <div class="rumdl-panel-actions">
-          <button class="rumdl-btn rumdl-btn-fix" title="Fix all auto-fixable issues (⌘⇧F)">Fix all</button>
-          <button class="rumdl-btn rumdl-btn-close" title="Close panel (⌘⇧L)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button class="rumdl-btn rumdl-btn-fix" title="Fix all auto-fixable issues (⌘⇧F)" aria-label="Fix all auto-fixable issues">Fix all</button>
+          <button class="rumdl-btn rumdl-btn-close" title="Close panel (⌘⇧L)" aria-label="Close panel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
           </button>
         </div>
       </div>
-      <div class="rumdl-panel-content"></div>
+      <div class="rumdl-panel-content" id="rumdl-panel-content" role="region" aria-label="Lint warnings"></div>
       <div class="rumdl-panel-footer">
-        <div class="rumdl-shortcuts">
+        <div class="rumdl-shortcuts" aria-label="Keyboard shortcuts">
           <span><kbd>⌘.</kbd> Quick fix</span>
           <span><kbd>⌘⌥]</kbd> Next</span>
           <span><kbd>⌘⌥[</kbd> Prev</span>
@@ -63,6 +67,14 @@ export class WarningPanel {
     const fixAllBtn = this.panel.querySelector('.rumdl-btn-fix') as HTMLButtonElement;
     fixAllBtn?.addEventListener('click', () => this.fixAll());
 
+    // Keyboard navigation - Escape to close
+    this.panel.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        this.hide();
+        this.textarea?.focus();
+      }
+    });
+
     // Make panel draggable by header
     const header = this.panel.querySelector('.rumdl-panel-header') as HTMLElement;
     this.makeDraggable(header);
@@ -72,9 +84,11 @@ export class WarningPanel {
 
     document.body.appendChild(this.panel);
 
-    // Add visible class after a frame for animation
+    // Add visible class after a frame for animation, then focus
     requestAnimationFrame(() => {
       this.panel?.classList.add('visible');
+      // Focus the panel for keyboard navigation
+      this.panel?.focus();
     });
   }
 
@@ -83,6 +97,8 @@ export class WarningPanel {
    */
   hide(): void {
     this.panel?.classList.remove('visible');
+    // Return focus to textarea
+    this.textarea?.focus();
   }
 
   /**

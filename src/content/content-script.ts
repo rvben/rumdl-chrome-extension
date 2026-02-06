@@ -6,7 +6,8 @@ import { WarningPanel } from './warning-panel.js';
 import { KeyboardShortcuts, ShortcutAction } from './keyboard-shortcuts.js';
 import { GutterMarkers } from './gutter-markers.js';
 import { destroyTooltip } from './tooltip.js';
-import { lint, fix, getConfig, ping } from '../shared/messages.js';
+import { lint, fix, getConfig, ping, getStatus } from '../shared/messages.js';
+import { showErrorNotification } from './error-notification.js';
 import { toLinterConfig } from '../shared/config-utils.js';
 import { validateAndMergeConfig } from '../shared/storage.js';
 import type { LintWarning, RumdlConfig } from '../shared/types.js';
@@ -50,6 +51,52 @@ const editorStates = new Map<HTMLTextAreaElement, EditorState>();
 // Debounce delay for linting (ms)
 const LINT_DEBOUNCE_MS = 150;
 
+// Track service worker health for recovery
+let serviceWorkerHealthy = false;
+let lastServiceWorkerCheck = 0;
+const SERVICE_WORKER_CHECK_INTERVAL = 30000; // 30 seconds
+
+/**
+ * Check service worker health and attempt recovery if needed
+ */
+async function checkServiceWorkerHealth(): Promise<boolean> {
+  const now = Date.now();
+
+  // Skip if we checked recently and it was healthy
+  if (serviceWorkerHealthy && now - lastServiceWorkerCheck < SERVICE_WORKER_CHECK_INTERVAL) {
+    return true;
+  }
+
+  lastServiceWorkerCheck = now;
+
+  try {
+    const ready = await ping();
+    if (!ready) {
+      serviceWorkerHealthy = false;
+      return false;
+    }
+
+    // Check WASM status
+    const status = await getStatus();
+    if (!status.wasmInitialized) {
+      serviceWorkerHealthy = false;
+      if (status.wasmError) {
+        showErrorNotification(
+          'Linting unavailable',
+          `WASM module failed to load: ${status.wasmError}`
+        );
+      }
+      return false;
+    }
+
+    serviceWorkerHealthy = true;
+    return true;
+  } catch (error) {
+    serviceWorkerHealthy = false;
+    return false;
+  }
+}
+
 /**
  * Initialize the extension
  */
@@ -57,19 +104,36 @@ async function init(): Promise<void> {
   console.log('[rumdl] Content script starting on', window.location.hostname);
   log('Initializing content script...');
 
-  // Wait for service worker to be ready
+  // Wait for service worker to be ready with retry
   let ready = false;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 15; i++) {
     ready = await ping();
     if (ready) break;
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 200));
   }
 
   if (!ready) {
-    logError('Service worker not responding');
+    logError('Service worker not responding after 3 seconds');
+    showErrorNotification(
+      'Extension failed to start',
+      'Service worker not responding. Try reloading the page.'
+    );
     return;
   }
   console.log('[rumdl] Service worker ready');
+
+  // Check WASM health
+  const status = await getStatus();
+  if (!status.wasmInitialized) {
+    logError('WASM not initialized:', status.wasmError);
+    showErrorNotification(
+      'Linting unavailable',
+      status.wasmError || 'WASM module failed to initialize'
+    );
+    return;
+  }
+  console.log('[rumdl] WASM initialized, version:', status.version);
+  serviceWorkerHealthy = true;
 
   // Load configuration
   try {
@@ -77,6 +141,7 @@ async function init(): Promise<void> {
     console.log('[rumdl] Config loaded, enabled:', config.enabled);
   } catch (error) {
     logError('Failed to load config:', error);
+    showErrorNotification('Failed to load configuration', String(error));
     return;
   }
 
@@ -269,16 +334,33 @@ function scheduleLint(textarea: HTMLTextAreaElement): void {
 }
 
 /**
- * Simple hash function for content comparison
+ * Hash function for content comparison that avoids collisions
+ * Combines length, sample characters, and a rolling hash
  */
 function hashContent(content: string): string {
+  const len = content.length;
+
+  // For very short content, just use the content itself
+  if (len < 50) {
+    return `${len}:${content}`;
+  }
+
+  // Rolling hash over entire content
   let hash = 0;
-  for (let i = 0; i < content.length; i++) {
+  for (let i = 0; i < len; i++) {
     const char = content.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
-  return hash.toString(36);
+
+  // Sample characters from start, middle, and end for additional collision resistance
+  const samples = [
+    content.substring(0, 20),
+    content.substring(Math.floor(len / 2) - 10, Math.floor(len / 2) + 10),
+    content.substring(len - 20)
+  ].join('|');
+
+  return `${len}:${hash.toString(36)}:${samples.length}`;
 }
 
 /**
@@ -321,12 +403,19 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
   }
 
   try {
+    // Check service worker health before linting
+    const healthy = await checkServiceWorkerHealth();
+    if (!healthy) {
+      log('Service worker not healthy, skipping lint');
+      return;
+    }
+
     const startTime = performance.now();
     const linterConfig = toLinterConfig(config);
-    console.log('[rumdl] Linting with config:', JSON.stringify(linterConfig));
+    log('Linting with config:', JSON.stringify(linterConfig));
     const warnings = await lint(content, linterConfig);
     const lintTime = performance.now() - startTime;
-    console.log('[rumdl] Warnings received:', warnings.length, 'fixable:', warnings.filter(w => w.fix).length);
+    log('Warnings received:', warnings.length, 'fixable:', warnings.filter(w => w.fix).length);
 
     state.warnings = warnings;
     state.lintTime = lintTime;
@@ -346,13 +435,11 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
 
     gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
 
-    console.log(`[rumdl] Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
-    // Log each warning with fix details
-    warnings.forEach((w, i) => {
-      console.log(`[rumdl] Warning ${i + 1}: ${w.rule_name} at line ${w.line} - ${w.message} - fix: ${w.fix ? 'yes' : 'no'}`);
-    });
+    log(`Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
   } catch (error) {
-    console.error('[rumdl] Lint failed:', error);
+    logError('Lint failed:', error);
+    // Mark service worker as unhealthy to trigger recovery check on next lint
+    serviceWorkerHealthy = false;
   }
 }
 
