@@ -63,6 +63,10 @@ export class WarningPanel {
     const fixAllBtn = this.panel.querySelector('.rumdl-btn-fix') as HTMLButtonElement;
     fixAllBtn?.addEventListener('click', () => this.fixAll());
 
+    // Make panel draggable by header
+    const header = this.panel.querySelector('.rumdl-panel-header') as HTMLElement;
+    this.makeDraggable(header);
+
     // Position panel near the textarea
     this.positionPanel(textarea);
 
@@ -288,5 +292,64 @@ export class WarningPanel {
         max-height: 400px;
       `;
     }
+  }
+
+  /**
+   * Make the panel draggable by its header
+   */
+  private makeDraggable(handle: HTMLElement): void {
+    if (!this.panel) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+
+    const onMouseDown = (e: MouseEvent) => {
+      // Don't drag if clicking on buttons
+      if ((e.target as HTMLElement).closest('button')) return;
+
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = this.panel!.getBoundingClientRect();
+      startLeft = rect.left;
+      startTop = rect.top;
+
+      // Reset bottom/right positioning to use top/left
+      this.panel!.style.bottom = 'auto';
+      this.panel!.style.right = 'auto';
+      this.panel!.style.left = `${startLeft}px`;
+      this.panel!.style.top = `${startTop}px`;
+
+      handle.style.cursor = 'grabbing';
+      e.preventDefault();
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !this.panel) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const newLeft = Math.max(0, Math.min(window.innerWidth - 320, startLeft + dx));
+      const newTop = Math.max(0, Math.min(window.innerHeight - 100, startTop + dy));
+
+      this.panel.style.left = `${newLeft}px`;
+      this.panel.style.top = `${newTop}px`;
+    };
+
+    const onMouseUp = () => {
+      isDragging = false;
+      handle.style.cursor = 'grab';
+    };
+
+    handle.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    handle.style.cursor = 'grab';
   }
 }
