@@ -1,6 +1,7 @@
 // Gutter Markers - small dots indicating lines with issues
 
 import type { LintWarning } from '../shared/types.js';
+import { showWarningsTooltip, hideTooltip } from './tooltip.js';
 
 interface GutterState {
   container: HTMLElement;
@@ -116,11 +117,17 @@ export class GutterMarkers {
       marker.className = `rumdl-gutter-dot rumdl-gutter-${severity.toLowerCase()}`;
 
       // Center the dot vertically on the line
-      const top = (line - 1) * state.lineHeight + (state.lineHeight / 2) - 3;
+      const top = (line - 1) * state.lineHeight + (state.lineHeight / 2) - 4;
       marker.style.top = `${top}px`;
 
-      // Tooltip with warning count
-      marker.title = `${lineWarningList.length} issue${lineWarningList.length > 1 ? 's' : ''} on line ${line}`;
+      // Custom tooltip on hover
+      marker.addEventListener('mouseenter', (e) => {
+        const rect = marker.getBoundingClientRect();
+        showWarningsTooltip(lineWarningList, rect.right, rect.top);
+      });
+      marker.addEventListener('mouseleave', () => {
+        hideTooltip();
+      });
 
       gutter.appendChild(marker);
     }

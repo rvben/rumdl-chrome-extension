@@ -431,10 +431,11 @@
 .rumdl-gutter-dot {
   position: absolute;
   left: 0;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  opacity: 0.8;
+  pointer-events: auto;
+  cursor: help;
 }
 
 .rumdl-gutter-dot.rumdl-gutter-error {

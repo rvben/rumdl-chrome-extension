@@ -117,6 +117,76 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
 }
 
 /**
+ * Show tooltip for multiple warnings (used by gutter dots)
+ */
+export function showWarningsTooltip(warnings: LintWarning[], x: number, y: number): void {
+  if (hideTimeout) {
+    clearTimeout(hideTimeout);
+    hideTimeout = null;
+  }
+
+  const tip = ensureTooltip();
+
+  const warningsHtml = warnings.map(warning => {
+    const severityColor = {
+      Error: 'var(--color-danger-fg, #cf222e)',
+      Warning: 'var(--color-attention-fg, #9a6700)',
+      Info: 'var(--color-accent-fg, #0969da)'
+    }[warning.severity];
+
+    const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');
+
+    return `
+      <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--color-border-muted, #d0d7de);">
+        <span style="
+          color: ${severityColor};
+          font-weight: 600;
+          font-family: ui-monospace, SFMono-Regular, monospace;
+          font-size: 11px;
+        ">${escapedRuleName}</span>
+        <div style="color: var(--color-fg-default, #1f2328); margin-top: 2px;">${escapeHtml(warning.message)}</div>
+      </div>
+    `;
+  }).join('');
+
+  tip.innerHTML = warningsHtml;
+  tip.style.background = 'var(--color-canvas-default, #ffffff)';
+  tip.style.color = 'var(--color-fg-default, #1f2328)';
+  tip.style.border = '1px solid var(--color-border-default, #d0d7de)';
+
+  // Remove last border
+  const lastDiv = tip.querySelector('div:last-child') as HTMLElement;
+  if (lastDiv) {
+    lastDiv.style.marginBottom = '0';
+    lastDiv.style.paddingBottom = '0';
+    lastDiv.style.borderBottom = 'none';
+  }
+
+  // Position tooltip
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  let left = x + 12;
+  let top = y - 8;
+
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+  tip.style.opacity = '1';
+  tip.style.transform = 'translateY(0)';
+
+  // Adjust after rendering if needed
+  requestAnimationFrame(() => {
+    const tipRect = tip.getBoundingClientRect();
+    if (left + tipRect.width > viewportWidth - 10) {
+      tip.style.left = `${x - tipRect.width - 12}px`;
+    }
+    if (top + tipRect.height > viewportHeight - 10) {
+      tip.style.top = `${y - tipRect.height + 8}px`;
+    }
+  });
+}
+
+/**
  * Hide the tooltip
  */
 export function hideTooltip(): void {
