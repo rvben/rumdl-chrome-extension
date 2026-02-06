@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "rumdl for GitHub",
+  "name": "rumdl",
   "version": "1.0.0",
-  "description": "Fast Markdown linting for GitHub issues, PRs, and comments",
+  "description": "Fast Markdown linting for GitHub, GitLab, Reddit, and more",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -14,7 +14,11 @@
     "activeTab"
   ],
   "host_permissions": [
-    "https://github.com/*"
+    "https://github.com/*",
+    "https://gitlab.com/*",
+    "https://*.gitlab.io/*",
+    "https://www.reddit.com/*",
+    "https://old.reddit.com/*"
   ],
   "background": {
     "service_worker": "dist/background/service-worker.js",
@@ -22,7 +26,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://github.com/*"],
+      "matches": [
+        "https://github.com/*",
+        "https://gitlab.com/*",
+        "https://*.gitlab.io/*",
+        "https://www.reddit.com/*",
+        "https://old.reddit.com/*"
+      ],
       "js": ["dist/content/content-script.js"],
       "css": ["dist/content/styles.css"],
       "run_at": "document_idle"
@@ -41,7 +51,13 @@
   "web_accessible_resources": [
     {
       "resources": ["wasm/*"],
-      "matches": ["https://github.com/*"]
+      "matches": [
+        "https://github.com/*",
+        "https://gitlab.com/*",
+        "https://*.gitlab.io/*",
+        "https://www.reddit.com/*",
+        "https://old.reddit.com/*"
+      ]
     }
   ]
 }

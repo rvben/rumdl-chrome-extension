@@ -1,6 +1,15 @@
-// Editor Manager - detects and manages GitHub markdown editors
+// Editor Manager - detects and manages markdown editors across sites
 
 type EditorCallback = (editor: HTMLTextAreaElement, event: 'added' | 'removed') => void;
+
+// Detect current site
+function getCurrentSite(): 'github' | 'gitlab' | 'reddit' | 'unknown' {
+  const hostname = window.location.hostname;
+  if (hostname === 'github.com') return 'github';
+  if (hostname === 'gitlab.com' || hostname.endsWith('.gitlab.io')) return 'gitlab';
+  if (hostname.endsWith('reddit.com')) return 'reddit';
+  return 'unknown';
+}
 
 // Selectors for GitHub markdown editors
 const GITHUB_EDITOR_SELECTORS = [
@@ -20,7 +29,62 @@ const GITHUB_EDITOR_SELECTORS = [
   'textarea[name="discussion[body]"]',  // Discussions
 ];
 
-const COMBINED_SELECTOR = GITHUB_EDITOR_SELECTORS.join(', ');
+// Selectors for GitLab markdown editors
+const GITLAB_EDITOR_SELECTORS = [
+  // Issue and MR descriptions
+  'textarea[data-qa-selector="markdown_editor"]',
+  'textarea.note-textarea',
+  'textarea#note-body',
+  'textarea.js-markdown-area',
+  // Wiki and snippet editors
+  'textarea[name="wiki[content]"]',
+  'textarea[name="content"]',
+  // Comment fields
+  'textarea[name*="[note]"]',
+  'textarea.js-gfm-input',
+  // Generic markdown textareas
+  'textarea[data-supports-quick-actions]',
+  'textarea.js-vue-markdown-field',
+];
+
+// Reddit uses contenteditable - requires different handling
+// For now, we'll try to detect markdown mode textareas
+const REDDIT_EDITOR_SELECTORS = [
+  // Markdown mode textarea (when user switches from fancy pants editor)
+  'textarea[placeholder*="markdown"]',
+  'textarea[data-testid="markdown-textarea"]',
+  // Old Reddit uses textareas
+  'textarea.usertext-edit',
+  'textarea[name="text"]',
+  // Comment textareas
+  'textarea.c-form-control',
+];
+
+// Get selectors based on current site
+function getSelectorsForSite(): string[] {
+  const site = getCurrentSite();
+  switch (site) {
+    case 'github':
+      return GITHUB_EDITOR_SELECTORS;
+    case 'gitlab':
+      return GITLAB_EDITOR_SELECTORS;
+    case 'reddit':
+      return REDDIT_EDITOR_SELECTORS;
+    default:
+      // Return all selectors for unknown sites
+      return [
+        ...GITHUB_EDITOR_SELECTORS,
+        ...GITLAB_EDITOR_SELECTORS,
+        ...REDDIT_EDITOR_SELECTORS,
+      ];
+  }
+}
+
+const COMBINED_SELECTOR = [
+  ...GITHUB_EDITOR_SELECTORS,
+  ...GITLAB_EDITOR_SELECTORS,
+  ...REDDIT_EDITOR_SELECTORS,
+].join(', ');
 
 export class EditorManager {
   private observers: Map<HTMLTextAreaElement, MutationObserver> = new Map();
@@ -156,7 +220,8 @@ export class EditorManager {
     // Notify callback
     this.callback?.(editor, 'added');
 
-    console.log('[rumdl] New editor detected:', editor.name || editor.id || 'unnamed');
+    const site = getCurrentSite();
+    console.log(`[rumdl] New editor detected on ${site}:`, editor.name || editor.id || 'unnamed');
   }
 
   private handleRemovedEditor(editor: HTMLTextAreaElement): void {

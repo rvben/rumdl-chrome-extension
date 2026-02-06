@@ -92,9 +92,14 @@ async function init(): Promise<void> {
     }
   });
 
-  // Handle GitHub's SPA navigation
+  // Handle SPA navigation for different sites
+  // GitHub uses Turbo and pjax
   document.addEventListener('turbo:load', handleNavigation);
   document.addEventListener('pjax:end', handleNavigation);
+  // GitLab uses Turbolinks
+  document.addEventListener('turbolinks:load', handleNavigation);
+  // Reddit uses React Router - we detect via popstate
+  window.addEventListener('popstate', handleNavigation);
 
   // Listen for config changes (store reference for cleanup)
   storageListener = (changes, area) => {
@@ -142,6 +147,8 @@ function cleanup(): void {
   // Remove navigation listeners
   document.removeEventListener('turbo:load', handleNavigation);
   document.removeEventListener('pjax:end', handleNavigation);
+  document.removeEventListener('turbolinks:load', handleNavigation);
+  window.removeEventListener('popstate', handleNavigation);
 
   // Destroy global tooltip
   destroyTooltip();
@@ -481,16 +488,46 @@ async function handlePaste(e: ClipboardEvent, textarea: HTMLTextAreaElement): Pr
 }
 
 /**
+ * Detect current site
+ */
+function getCurrentSite(): 'github' | 'gitlab' | 'reddit' | 'unknown' {
+  const hostname = window.location.hostname;
+  if (hostname === 'github.com') return 'github';
+  if (hostname === 'gitlab.com' || hostname.endsWith('.gitlab.io')) return 'gitlab';
+  if (hostname.endsWith('reddit.com')) return 'reddit';
+  return 'unknown';
+}
+
+/**
+ * Get toolbar selectors for current site
+ */
+function getToolbarSelectors(): string {
+  const site = getCurrentSite();
+  switch (site) {
+    case 'github':
+      return '[role="toolbar"], .toolbar-commenting, .tabnav-tabs, .form-actions';
+    case 'gitlab':
+      return '.md-header, .js-md-preview-button, .md-header-toolbar, .note-actions, .comment-toolbar';
+    case 'reddit':
+      return '.MarkdownEditor-toolbar, .c-form-actions, .submission-actions';
+    default:
+      // Try all selectors
+      return '[role="toolbar"], .toolbar-commenting, .tabnav-tabs, .form-actions, .md-header, .js-md-preview-button, .md-header-toolbar';
+  }
+}
+
+/**
  * Create a lint status button near the textarea
  */
 function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
-  // Find toolbar by traversing up the DOM - GitHub uses various container structures
+  // Find toolbar by traversing up the DOM - sites use various container structures
   let container: HTMLElement | null = textarea.parentElement;
   let toolbar: Element | null = null;
+  const toolbarSelectors = getToolbarSelectors();
 
   // Look up to 10 levels for a container with a toolbar
   for (let i = 0; i < 10 && container && !toolbar; i++) {
-    toolbar = container.querySelector('[role="toolbar"], .toolbar-commenting, .tabnav-tabs, .form-actions');
+    toolbar = container.querySelector(toolbarSelectors);
     if (!toolbar) {
       container = container.parentElement;
     }

@@ -24,9 +24,23 @@
   --color-success-emphasis: #1f883d;
 }
 
+/* GitLab light mode adjustments */
+[data-theme="light"],
+.gl-dark {
+  /* GitLab uses different variable names, we provide consistent fallbacks */
+}
+
+/* Reddit light mode adjustments */
+.theme-light {
+  /* Reddit uses its own theme system */
+}
+
 /* Dark mode - GitHub's dark theme */
 [data-color-mode="dark"],
 [data-dark-theme="dark"],
+[data-theme="dark"],
+.gl-dark,
+.theme-dark,
 .dark {
   --color-fg-default: #e6edf3;
   --color-fg-muted: #8b949e;
@@ -377,9 +391,9 @@
   margin: 0 4px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-fg-muted);
-  background: transparent;
-  border: 1px solid transparent;
+  color: var(--color-fg-muted, #656d76);
+  background: var(--color-canvas-subtle, rgba(255,255,255,0.1));
+  border: 1px solid var(--color-border-default, rgba(255,255,255,0.2));
   border-radius: 6px;
   cursor: pointer;
   transition: 0.1s ease;
@@ -431,8 +445,8 @@
 .rumdl-gutter-dot {
   position: absolute;
   left: 0;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   pointer-events: auto;
   cursor: help;

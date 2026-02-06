@@ -43,12 +43,19 @@ export class GutterMarkers {
     const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
     const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
 
+    // Position dots in left padding area, just before text starts
+    // paddingLeft is where text begins, so place dots at paddingLeft - dotWidth - gap
+    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 12;
+    const dotWidth = 6;
+    const gap = 4;
+    const gutterLeft = Math.max(2, paddingLeft - dotWidth - gap);
+
     const syncDimensions = () => {
       container.style.cssText = `
         position: absolute;
         top: ${textarea.offsetTop + paddingTop}px;
-        left: ${textarea.offsetLeft + 4}px;
-        width: 8px;
+        left: ${textarea.offsetLeft + gutterLeft}px;
+        width: ${dotWidth}px;
         height: ${textarea.offsetHeight - paddingTop * 2}px;
         pointer-events: none;
         overflow: hidden;
@@ -121,8 +128,8 @@ export class GutterMarkers {
       const marker = document.createElement('div');
       marker.className = `rumdl-gutter-dot rumdl-gutter-${severity.toLowerCase()}`;
 
-      // Center the dot vertically on the line
-      const top = (line - 1) * state.lineHeight + (state.lineHeight / 2) - 4;
+      // Center the dot vertically on the line (6px dot = 3px offset)
+      const top = (line - 1) * state.lineHeight + (state.lineHeight / 2) - 3;
       marker.style.top = `${top}px`;
 
       // Custom tooltip on hover with fix callback
