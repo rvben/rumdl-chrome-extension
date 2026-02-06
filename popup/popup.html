@@ -3,15 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>rumdl for GitHub</title>
+  <title>rumdl - Markdown Linter</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup">
     <header class="header">
       <div class="logo">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        <svg viewBox="0 0 32 32" width="24" height="24">
+          <!-- Document shape -->
+          <path d="M8 6h12l4 4v16c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2z"
+                fill="none" stroke="#1e1e2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Document fold -->
+          <path d="M20 6v4h4" fill="none" stroke="#1e1e2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Green checkmark -->
+          <circle cx="22" cy="22" r="6" fill="#22c55e"/>
+          <path d="M19.5 22l1.5 1.5l3-3" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span class="logo-text">rumdl</span>
       </div>
@@ -24,7 +31,7 @@
         <div class="toggle-row">
           <label for="enabled" class="toggle-label">
             <span class="toggle-title">Enable rumdl</span>
-            <span class="toggle-desc">Lint markdown in GitHub editors</span>
+            <span class="toggle-desc">Lint markdown on GitHub, GitLab, and Reddit</span>
           </label>
           <input type="checkbox" id="enabled" class="toggle">
         </div>
