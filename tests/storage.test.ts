@@ -74,11 +74,11 @@ describe('validateAndMergeConfig', () => {
   });
 
   it('validates boolean display options', () => {
-    expect(validateAndMergeConfig({ showInlineMarkers: false }).showInlineMarkers).toBe(false);
     expect(validateAndMergeConfig({ showGutterIcons: false }).showGutterIcons).toBe(false);
     expect(validateAndMergeConfig({ autoFormat: true }).autoFormat).toBe(true);
+    expect(validateAndMergeConfig({ reflow: true }).reflow).toBe(true);
     // Invalid values use defaults
-    expect(validateAndMergeConfig({ showInlineMarkers: 'yes' }).showInlineMarkers).toBe(DEFAULT_CONFIG.showInlineMarkers);
+    expect(validateAndMergeConfig({ showGutterIcons: 'yes' }).showGutterIcons).toBe(DEFAULT_CONFIG.showGutterIcons);
   });
 
   it('validates ruleConfigs with safe keys only', () => {
@@ -125,6 +125,6 @@ describe('validateAndMergeConfig', () => {
     // Other fields should be defaults
     expect(result.flavor).toBe(DEFAULT_CONFIG.flavor);
     expect(result.disabledRules).toEqual(DEFAULT_CONFIG.disabledRules);
-    expect(result.showInlineMarkers).toBe(DEFAULT_CONFIG.showInlineMarkers);
+    expect(result.showGutterIcons).toBe(DEFAULT_CONFIG.showGutterIcons);
   });
 });
