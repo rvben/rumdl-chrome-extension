@@ -98,6 +98,13 @@ export class WarningPanel {
   }
 
   /**
+   * Update the config (call when global config changes)
+   */
+  updateConfig(config: LinterConfig): void {
+    this.config = config;
+  }
+
+  /**
    * Update the warnings displayed in the panel
    */
   updateWarnings(warnings: LintWarning[], lintTime: number = 0): void {
@@ -148,9 +155,9 @@ export class WarningPanel {
     warnings.forEach((w, i) => indexMap.set(w, i));
 
     // Group by severity
-    const errors = warnings.filter(w => w.severity === 'Error');
-    const warns = warnings.filter(w => w.severity === 'Warning');
-    const infos = warnings.filter(w => w.severity === 'Info');
+    const errors = warnings.filter(w => w.severity === 'error');
+    const warns = warnings.filter(w => w.severity === 'warning');
+    const infos = warnings.filter(w => w.severity === 'info');
 
     let html = '';
 

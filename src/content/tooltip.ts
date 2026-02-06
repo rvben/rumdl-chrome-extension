@@ -52,11 +52,10 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
 
   const tip = ensureTooltip();
 
-  // Build tooltip content
   const severityColor = {
-    Error: '#f38ba8',
-    Warning: '#fab387',
-    Info: '#89b4fa'
+    error: '#f38ba8',
+    warning: '#fab387',
+    info: '#89b4fa'
   }[warning.severity];
 
   const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');
@@ -142,9 +141,9 @@ export function showWarningsTooltip(
 
   const warningsHtml = warnings.map((warning, index) => {
     const severityColor = {
-      Error: 'var(--color-danger-fg, #cf222e)',
-      Warning: 'var(--color-attention-fg, #9a6700)',
-      Info: 'var(--color-accent-fg, #0969da)'
+      error: 'var(--color-danger-fg, #cf222e)',
+      warning: 'var(--color-attention-fg, #9a6700)',
+      info: 'var(--color-accent-fg, #0969da)'
     }[warning.severity];
 
     const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');

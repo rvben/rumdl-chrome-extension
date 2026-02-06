@@ -235,9 +235,9 @@ export class GutterMarkers {
   /**
    * Get the highest severity from a list of warnings
    */
-  private getHighestSeverity(warnings: LintWarning[]): 'Error' | 'Warning' | 'Info' {
-    if (warnings.some(w => w.severity === 'Error')) return 'Error';
-    if (warnings.some(w => w.severity === 'Warning')) return 'Warning';
-    return 'Info';
+  private getHighestSeverity(warnings: LintWarning[]): 'error' | 'warning' | 'info' {
+    if (warnings.some(w => w.severity === 'error')) return 'error';
+    if (warnings.some(w => w.severity === 'warning')) return 'warning';
+    return 'info';
   }
 }

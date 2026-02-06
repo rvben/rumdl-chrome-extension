@@ -7,7 +7,7 @@ export interface LintWarning {
   column: number;
   end_line: number;
   end_column: number;
-  severity: 'Error' | 'Warning' | 'Info';
+  severity: 'error' | 'warning' | 'info';
   fix?: LintFix;
 }
 

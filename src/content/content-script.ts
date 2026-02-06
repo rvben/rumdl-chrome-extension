@@ -107,9 +107,13 @@ async function init(): Promise<void> {
   storageListener = (changes, area) => {
     if (area === 'sync' && changes.rumdl_config) {
       config = validateAndMergeConfig(changes.rumdl_config.newValue);
-      log('Config updated:', config);
-      // Re-lint all editors with new config
-      for (const textarea of editorStates.keys()) {
+      console.log('[rumdl] Config updated from storage:', config);
+      // Update config on all panels and force re-lint all editors
+      const linterConfig = toLinterConfig(config);
+      for (const [textarea, state] of editorStates.entries()) {
+        state.panel.updateConfig(linterConfig);
+        // Clear content hash to force re-lint with new config
+        state.lastContentHash = '';
         performLint(textarea);
       }
     }
@@ -319,8 +323,10 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
   try {
     const startTime = performance.now();
     const linterConfig = toLinterConfig(config);
+    console.log('[rumdl] Linting with config:', JSON.stringify(linterConfig));
     const warnings = await lint(content, linterConfig);
     const lintTime = performance.now() - startTime;
+    console.log('[rumdl] Warnings received:', warnings.length, 'fixable:', warnings.filter(w => w.fix).length);
 
     state.warnings = warnings;
     state.lintTime = lintTime;
@@ -341,9 +347,10 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
 
     console.log(`[rumdl] Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
-    if (warnings.length > 0) {
-      console.log('[rumdl] First warning:', warnings[0]);
-    }
+    // Log each warning with fix details
+    warnings.forEach((w, i) => {
+      console.log(`[rumdl] Warning ${i + 1}: ${w.rule_name} at line ${w.line} - ${w.message} - fix: ${w.fix ? 'yes' : 'no'}`);
+    });
   } catch (error) {
     console.error('[rumdl] Lint failed:', error);
   }
