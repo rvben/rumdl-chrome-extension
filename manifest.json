@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "rumdl",
+  "name": "rumdl — Markdown Linter",
+  "short_name": "rumdl",
   "version": "1.0.0",
-  "description": "Real-time Markdown linting with auto-fix for GitHub and GitLab. Powered by the rumdl Rust linter.",
-  "minimum_chrome_version": "90",
+  "description": "Real-time Markdown linting with auto-fix for GitHub and GitLab.",
+  "homepage_url": "https://github.com/rvben/rumdl-chrome-extension",
+  "minimum_chrome_version": "121",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -11,13 +13,11 @@
     "128": "icons/icon-128.png"
   },
   "permissions": [
-    "storage",
-    "activeTab"
+    "storage"
   ],
   "host_permissions": [
     "https://github.com/*",
-    "https://gitlab.com/*",
-    "https://*.gitlab.io/*"
+    "https://gitlab.com/*"
   ],
   "background": {
     "service_worker": "dist/background/service-worker.js",
@@ -27,8 +27,7 @@
     {
       "matches": [
         "https://github.com/*",
-        "https://gitlab.com/*",
-        "https://*.gitlab.io/*"
+        "https://gitlab.com/*"
       ],
       "js": ["dist/content/content-script.js"],
       "css": ["dist/content/styles.css"],
@@ -37,6 +36,7 @@
   ],
   "action": {
     "default_popup": "popup/popup.html",
+    "default_title": "rumdl — Markdown Linter",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
@@ -50,8 +50,7 @@
       "resources": ["wasm/*"],
       "matches": [
         "https://github.com/*",
-        "https://gitlab.com/*",
-        "https://*.gitlab.io/*"
+        "https://gitlab.com/*"
       ]
     }
   ]

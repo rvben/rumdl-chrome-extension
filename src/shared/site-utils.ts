@@ -8,6 +8,6 @@ export type SiteName = 'github' | 'gitlab' | 'unknown';
 export function getCurrentSite(): SiteName {
   const hostname = window.location.hostname;
   if (hostname === 'github.com') return 'github';
-  if (hostname === 'gitlab.com' || hostname.endsWith('.gitlab.io')) return 'gitlab';
+  if (hostname === 'gitlab.com') return 'gitlab';
   return 'unknown';
 }

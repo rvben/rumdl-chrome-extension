@@ -31,12 +31,12 @@ describe('getCurrentSite', () => {
     expect(getCurrentSite()).toBe('gitlab');
   });
 
-  it('detects *.gitlab.io subdomains', () => {
+  it('does not match *.gitlab.io (GitLab Pages, not GitLab UI)', () => {
     setHostname('myorg.gitlab.io');
-    expect(getCurrentSite()).toBe('gitlab');
+    expect(getCurrentSite()).toBe('unknown');
   });
 
-  it('does not match gitlab subdomains (only .io)', () => {
+  it('does not match gitlab subdomains', () => {
     setHostname('ci.gitlab.com');
     expect(getCurrentSite()).toBe('unknown');
   });
