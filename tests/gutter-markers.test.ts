@@ -211,6 +211,15 @@ describe('GutterMarkers', () => {
       expect(marker.style.backgroundColor).toBe('rgb(207, 34, 46)'); // error color
     });
 
+    it('renders vertical bars with rounded ends', () => {
+      const gutter = gutterMarkers.createGutter(textarea);
+      gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
+
+      const marker = gutter.querySelector('div') as HTMLElement;
+      expect(marker.style.width).toBe('3px');
+      expect(marker.style.borderRadius).toBe('2px');
+    });
+
     it('sets pointer-events to auto for interactivity', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, mockWarnings);
@@ -225,6 +234,14 @@ describe('GutterMarkers', () => {
 
       const marker = gutter.querySelector('div') as HTMLElement;
       expect(marker.style.cursor).toBe('pointer');
+    });
+
+    it('starts at reduced opacity', () => {
+      const gutter = gutterMarkers.createGutter(textarea);
+      gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
+
+      const marker = gutter.querySelector('div') as HTMLElement;
+      expect(marker.style.opacity).toBe('0.8');
     });
 
     it('clears existing markers before rendering', () => {
@@ -295,7 +312,7 @@ describe('GutterMarkers', () => {
       ]);
 
       const marker = gutter.querySelector('div') as HTMLElement;
-      expect(marker.style.backgroundColor).toBe('rgb(207, 34, 46)'); // error color
+      expect(marker.style.backgroundColor).toBe('rgb(207, 34, 46)'); // error color takes priority
     });
 
     it('warning > info when no error', () => {

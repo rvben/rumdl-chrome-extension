@@ -1,4 +1,4 @@
-// Gutter Markers - small dots indicating lines with issues
+// Gutter Markers - vertical bars indicating lines with issues
 // Uses inline styles instead of CSS classes for Shadow DOM compatibility
 
 import type { LintWarning } from '../shared/types.js';
@@ -50,12 +50,11 @@ export class GutterMarkers {
     const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
     const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
 
-    // Position dots in left padding area, just before text starts
-    // paddingLeft is where text begins, so place dots at paddingLeft - dotWidth - gap
+    // Position bars in left padding area, just before text starts
     const paddingLeft = parseFloat(computedStyle.paddingLeft) || 12;
-    const dotWidth = 6;
+    const barWidth = 3;
     const gap = 4;
-    const gutterLeft = Math.max(2, paddingLeft - dotWidth - gap);
+    const gutterLeft = Math.max(2, paddingLeft - barWidth - gap);
 
     const syncDimensions = () => {
       // Keep container narrow and only in the gutter area to avoid blocking clicks
@@ -63,7 +62,7 @@ export class GutterMarkers {
         position: absolute;
         top: ${textarea.offsetTop + paddingTop}px;
         left: ${textarea.offsetLeft + gutterLeft}px;
-        width: ${dotWidth}px;
+        width: ${barWidth}px;
         height: ${textarea.offsetHeight - paddingTop * 2}px;
         pointer-events: none;
         overflow: visible;
@@ -176,11 +175,11 @@ export class GutterMarkers {
       lineWarnings.set(warning.line, lineList);
     }
 
-    // Create marker for each line with warnings
+    // Create vertical bar marker for each line with warnings
     for (const [line, lineWarningList] of lineWarnings) {
       const severity = this.getHighestSeverity(lineWarningList);
 
-      // Severity colors
+      // Severity colors (GitHub Primer tokens)
       const severityColors: Record<string, string> = {
         error: '#cf222e',
         warning: '#9a6700',
@@ -189,33 +188,35 @@ export class GutterMarkers {
       const color = severityColors[severity.toLowerCase()] || severityColors.warning;
 
       const marker = document.createElement('div');
-      // Use inline styles for shadow DOM compatibility
+      // Vertical bar spanning the full line height, with rounded ends
       marker.style.cssText = `
         position: absolute;
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
+        width: 3px;
+        border-radius: 2px;
         background-color: ${color};
         pointer-events: auto;
         cursor: pointer;
-        transition: transform 0.1s ease;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+        transition: box-shadow 0.15s ease, opacity 0.15s ease;
+        opacity: 0.8;
       `;
 
-      // Get the visual Y position for this line, center the dot (6px dot = 3px offset)
+      // Position bar to span the full line height with 2px vertical padding
       const lineY = linePositions[line - 1] ?? (line - 1) * state.lineHeight;
-      const top = lineY + (state.lineHeight / 2) - 3;
-      marker.style.top = `${top}px`;
+      const verticalPad = 2;
+      marker.style.top = `${lineY + verticalPad}px`;
+      marker.style.height = `${state.lineHeight - verticalPad * 2}px`;
       marker.style.left = '0px';
 
-      // Hover effect
+      // Hover effect: full opacity + soft glow
       marker.addEventListener('mouseenter', () => {
-        marker.style.transform = 'scale(1.3)';
+        marker.style.opacity = '1';
+        marker.style.boxShadow = `0 0 6px ${color}`;
         const rect = marker.getBoundingClientRect();
         showWarningsTooltip(lineWarningList, rect.right, rect.top, onFix);
       });
       marker.addEventListener('mouseleave', () => {
-        marker.style.transform = 'scale(1)';
+        marker.style.opacity = '0.8';
+        marker.style.boxShadow = 'none';
         // Delay hide to allow moving to tooltip
         setTimeout(() => {
           const tooltip = document.querySelector('.rumdl-tooltip');
