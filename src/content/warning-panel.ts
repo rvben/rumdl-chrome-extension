@@ -16,6 +16,14 @@ export class WarningPanel {
   private textarea: HTMLTextAreaElement | null = null;
   private config: LinterConfig | null = null;
   private lintTime: number = 0;
+  private onFixApplied: (() => void) | null = null;
+
+  /**
+   * Set callback for when a fix is applied (triggers immediate re-lint)
+   */
+  setOnFixApplied(callback: () => void): void {
+    this.onFixApplied = callback;
+  }
 
   /**
    * Create or show the warning panel
@@ -278,8 +286,11 @@ export class WarningPanel {
     const value = this.textarea.value;
     this.textarea.value = value.slice(0, start) + replacement + value.slice(end);
 
-    // Trigger input event to re-lint (composed: true for shadow DOM)
+    // Notify the host site of the change (composed: true for shadow DOM)
     this.textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+
+    // Trigger immediate re-lint (bypasses debounce)
+    this.onFixApplied?.();
   }
 
   /**
@@ -294,8 +305,10 @@ export class WarningPanel {
 
       if (fixed !== originalValue) {
         this.textarea.value = fixed;
-        // Use composed: true to cross shadow DOM boundaries
+        // Notify the host site of the change
         this.textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        // Trigger immediate re-lint (bypasses debounce)
+        this.onFixApplied?.();
         log('Fix all applied');
       }
     } catch (error) {

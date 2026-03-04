@@ -57,6 +57,36 @@ let serviceWorkerHealthy = false;
 let lastServiceWorkerCheck = 0;
 const SERVICE_WORKER_CHECK_INTERVAL = 30000; // 30 seconds
 
+// Keep-alive: ping the service worker every 20s to prevent Chrome from
+// terminating it while editors are active (MV3 kills idle workers after ~30s)
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Start keep-alive pings if editors are active
+ */
+function startKeepAlive(): void {
+  if (keepAliveTimer) return;
+  keepAliveTimer = setInterval(() => {
+    if (editorStates.size > 0) {
+      ping().catch(() => {
+        serviceWorkerHealthy = false;
+      });
+    } else {
+      stopKeepAlive();
+    }
+  }, 20000);
+}
+
+/**
+ * Stop keep-alive pings
+ */
+function stopKeepAlive(): void {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+}
+
 /**
  * Check service worker health and attempt recovery if needed
  */
@@ -227,6 +257,9 @@ function cleanup(): void {
 
   // Destroy global tooltip
   destroyTooltip();
+
+  // Stop service worker keep-alive
+  stopKeepAlive();
 }
 
 /**
@@ -269,6 +302,18 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
   };
   editorStates.set(textarea, state);
 
+  // When a fix is applied from the panel, re-lint immediately (bypass debounce)
+  panel.setOnFixApplied(() => {
+    // Clear any pending debounced lint
+    if (state.debounceTimer) {
+      clearTimeout(state.debounceTimer);
+      state.debounceTimer = null;
+    }
+    // Clear content hash to force re-lint
+    state.lastContentHash = '';
+    performLint(textarea);
+  });
+
   // Add input listener with debounce
   textarea.addEventListener('input', () => scheduleLint(textarea));
 
@@ -277,6 +322,9 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
 
   // Register keyboard shortcuts
   keyboardShortcuts.register(textarea, (action, ta) => handleShortcut(action, ta));
+
+  // Keep service worker alive while editors are active
+  startKeepAlive();
 
   // Initial lint
   performLint(textarea);
@@ -424,6 +472,13 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
       const { replacement } = warning.fix;
       textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
       textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+      // Re-lint immediately (bypass debounce)
+      if (state.debounceTimer) {
+        clearTimeout(state.debounceTimer);
+        state.debounceTimer = null;
+      }
+      state.lastContentHash = '';
+      performLint(textarea);
     };
 
     gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
