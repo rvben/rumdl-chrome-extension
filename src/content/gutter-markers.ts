@@ -1,7 +1,13 @@
 // Gutter Markers - small dots indicating lines with issues
+// Uses inline styles instead of CSS classes for Shadow DOM compatibility
 
 import type { LintWarning } from '../shared/types.js';
 import { showWarningsTooltip, hideTooltip } from './tooltip.js';
+
+const DEBUG = false;
+function log(...args: unknown[]): void {
+  if (DEBUG) console.log('[rumdl:gutter]', ...args);
+}
 
 interface GutterState {
   container: HTMLElement;
@@ -28,9 +34,8 @@ export class GutterMarkers {
     container.setAttribute('aria-hidden', 'true');
 
     const parent = textarea.parentElement;
-    console.log('[rumdl] Gutter parent element:', parent?.tagName, parent);
     if (!parent) {
-      console.log('[rumdl] No parent element for gutter');
+      log('No parent element for gutter');
       return container;
     }
 
@@ -67,7 +72,6 @@ export class GutterMarkers {
     };
 
     syncDimensions();
-    console.log('[rumdl] Gutter positioned:', container.style.cssText);
 
     const resizeObserver = new ResizeObserver(syncDimensions);
     resizeObserver.observe(textarea);
@@ -154,7 +158,7 @@ export class GutterMarkers {
     onFix?: (warning: LintWarning) => void
   ): void {
     gutter.innerHTML = '';
-    console.log(`[rumdl] Rendering ${warnings.length} warnings to gutter`);
+    log(`Rendering ${warnings.length} warnings to gutter`);
 
     if (warnings.length === 0) return;
 

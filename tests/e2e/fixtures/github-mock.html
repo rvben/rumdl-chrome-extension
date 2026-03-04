@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="light">
+<head>
+  <meta charset="UTF-8">
+  <title>GitHub Mock - rumdl E2E Test</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; margin: 40px; background: #f6f8fa; }
+    .comment-form-textarea { width: 100%; min-height: 200px; padding: 12px; font-family: ui-monospace, monospace; font-size: 14px; border: 1px solid #d0d7de; border-radius: 6px; resize: vertical; }
+    .form-actions { display: flex; gap: 8px; margin-top: 8px; }
+    [role="toolbar"] { display: flex; gap: 4px; padding: 8px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px 6px 0 0; }
+  </style>
+</head>
+<body>
+  <h2>New Issue</h2>
+  <div class="js-comment-container">
+    <div role="toolbar">
+      <button type="button">Bold</button>
+      <button type="button">Italic</button>
+    </div>
+    <textarea
+      name="issue[body]"
+      class="comment-form-textarea js-comment-field"
+      data-paste-markdown="true"
+      placeholder="Leave a comment"
+      aria-label="Markdown value"
+    ></textarea>
+    <div class="form-actions d-flex">
+      <button type="submit">Submit new issue</button>
+    </div>
+  </div>
+</body>
+</html>

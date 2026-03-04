@@ -4,6 +4,11 @@ import type { LintWarning, LinterConfig } from '../shared/types.js';
 import { fix } from '../shared/messages.js';
 import { escapeHtml } from '../shared/html-utils.js';
 
+const DEBUG = false;
+function log(...args: unknown[]): void {
+  if (DEBUG) console.log('[rumdl:panel]', ...args);
+}
+
 export class WarningPanel {
   private panel: HTMLElement | null = null;
   private content: HTMLElement | null = null;
@@ -281,26 +286,17 @@ export class WarningPanel {
    * Fix all auto-fixable warnings
    */
   private async fixAll(): Promise<void> {
-    console.log('[rumdl] fixAll called, textarea:', !!this.textarea, 'config:', !!this.config);
-
-    if (!this.textarea || !this.config) {
-      console.log('[rumdl] fixAll: missing textarea or config');
-      return;
-    }
+    if (!this.textarea || !this.config) return;
 
     try {
       const originalValue = this.textarea.value;
-      console.log('[rumdl] fixAll: calling fix with', originalValue.length, 'chars');
       const fixed = await fix(originalValue, this.config);
-      console.log('[rumdl] fixAll: received', fixed.length, 'chars, changed:', fixed !== originalValue);
 
       if (fixed !== originalValue) {
         this.textarea.value = fixed;
         // Use composed: true to cross shadow DOM boundaries
         this.textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-        console.log('[rumdl] fixAll: applied fix successfully');
-      } else {
-        console.log('[rumdl] fixAll: no changes needed');
+        log('Fix all applied');
       }
     } catch (error) {
       console.error('[rumdl] Fix all failed:', error);

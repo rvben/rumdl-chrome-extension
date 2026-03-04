@@ -9,3 +9,6 @@ wasm/
 
 # Package files
 *.zip
+
+# Coverage reports
+coverage/

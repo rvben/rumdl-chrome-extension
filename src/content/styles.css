@@ -437,29 +437,8 @@
 
 /* ============================================
    Gutter Markers - Line indicators
+   Dots use inline styles for Shadow DOM compat.
    ============================================ */
 .rumdl-gutter {
   pointer-events: none;
-}
-
-.rumdl-gutter-dot {
-  position: absolute;
-  left: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  pointer-events: auto;
-  cursor: help;
-}
-
-.rumdl-gutter-dot.rumdl-gutter-error {
-  background-color: var(--color-danger-fg);
-}
-
-.rumdl-gutter-dot.rumdl-gutter-warning {
-  background-color: var(--color-attention-fg);
-}
-
-.rumdl-gutter-dot.rumdl-gutter-info {
-  background-color: var(--color-accent-fg);
 }

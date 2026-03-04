@@ -10,8 +10,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
 // Try multiple possible source locations
 const wasmSrcPaths = [
-  join(rootDir, '..', 'rumdl', 'wasm-demo', 'pkg'),  // rumdl project's wasm-demo
-  join(rootDir, '..', 'rumdl', 'pkg'),               // rumdl project's pkg
+  join(rootDir, '..', 'rumdl', 'pkg'),               // wasm-pack build output
+  join(rootDir, '..', 'rumdl', 'wasm-demo', 'pkg'),  // legacy wasm-demo location
   join(rootDir, '..', 'wasm-demo', 'pkg'),           // sibling wasm-demo
 ];
 const wasmDest = join(rootDir, 'wasm');

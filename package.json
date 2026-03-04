@@ -12,10 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "node tests/e2e/extension.test.mjs",
     "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ wasm/ -x '*.svg'"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
     "@types/chrome": "^0.1.36",
     "@vitest/coverage-v8": "^4.0.18",
     "esbuild": "^0.27.2",

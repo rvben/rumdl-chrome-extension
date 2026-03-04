@@ -141,21 +141,20 @@ The WASM binary is ~3 MB (downloaded once and cached).
 
 ## Development
 
+All CI/CD steps are Make targets that can be run locally:
+
 ```bash
-# Install dependencies
-npm install
-
-# Build the extension
-npm run build
-
-# Type-check without building
-npm run typecheck
-
-# Clean build artifacts
-npm run clean
-
-# Create a packaged extension (.zip)
-npm run package
+make install        # Install dependencies
+make build          # Build the extension
+make lint           # TypeScript type checking
+make test-unit      # Run unit tests (128 tests)
+make test           # Lint + unit tests
+make check          # Lint + test + build
+make package        # Create rumdl-extension.zip
+make ci             # Full CI pipeline (install + check + package)
+make check-size     # Verify extension size is under Chrome Web Store limit
+make rebuild-wasm   # Rebuild WASM from rumdl source
+make watch          # Development watch mode
 ```
 
 ### Building the WASM Module
@@ -163,8 +162,13 @@ npm run package
 The WASM module is built from the main rumdl repository:
 
 ```bash
-cd ../rumdl  # or wherever rumdl is located
-wasm-pack build --target web --out-dir pkg --release -- --no-default-features --features wasm
+make rebuild-wasm
+```
+
+Or manually:
+
+```bash
+cd ../rumdl/wasm-demo && wasm-pack build --target web
 ```
 
 ## Contributing

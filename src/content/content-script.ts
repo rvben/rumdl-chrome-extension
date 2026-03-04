@@ -10,6 +10,7 @@ import { lint, fix, getConfig, ping, getStatus } from '../shared/messages.js';
 import { showErrorNotification } from './error-notification.js';
 import { toLinterConfig } from '../shared/config-utils.js';
 import { validateAndMergeConfig } from '../shared/storage.js';
+import { getCurrentSite } from '../shared/site-utils.js';
 import type { LintWarning, RumdlConfig } from '../shared/types.js';
 
 // Debug mode - set to false for production
@@ -101,8 +102,7 @@ async function checkServiceWorkerHealth(): Promise<boolean> {
  * Initialize the extension
  */
 async function init(): Promise<void> {
-  console.log('[rumdl] Content script starting on', window.location.hostname);
-  log('Initializing content script...');
+  log('Content script starting on', window.location.hostname);
 
   // Wait for service worker to be ready with retry
   let ready = false;
@@ -120,7 +120,7 @@ async function init(): Promise<void> {
     );
     return;
   }
-  console.log('[rumdl] Service worker ready');
+  log('Service worker ready');
 
   // Check WASM health
   const status = await getStatus();
@@ -132,13 +132,13 @@ async function init(): Promise<void> {
     );
     return;
   }
-  console.log('[rumdl] WASM initialized, version:', status.version);
+  log('WASM initialized, version:', status.version);
   serviceWorkerHealthy = true;
 
   // Load configuration
   try {
     config = await getConfig();
-    console.log('[rumdl] Config loaded, enabled:', config.enabled);
+    log('Config loaded, enabled:', config.enabled);
   } catch (error) {
     logError('Failed to load config:', error);
     showErrorNotification('Failed to load configuration', String(error));
@@ -146,7 +146,7 @@ async function init(): Promise<void> {
   }
 
   if (!config.enabled) {
-    console.log('[rumdl] Extension is disabled');
+    log('Extension is disabled');
     return;
   }
 
@@ -172,7 +172,7 @@ async function init(): Promise<void> {
   storageListener = (changes, area) => {
     if (area === 'sync' && changes.rumdl_config) {
       config = validateAndMergeConfig(changes.rumdl_config.newValue);
-      console.log('[rumdl] Config updated from storage:', config);
+      log('Config updated from storage');
       // Update config on all panels and force re-lint all editors
       const linterConfig = toLinterConfig(config);
       for (const [textarea, state] of editorStates.entries()) {
@@ -237,27 +237,19 @@ function handleNavigation(): void {
  * Set up linting for a textarea
  */
 function setupEditor(textarea: HTMLTextAreaElement): void {
-  console.log('[rumdl] setupEditor called for:', textarea.placeholder || textarea.name || textarea.id || 'unnamed');
+  if (editorStates.has(textarea)) return;
 
-  if (editorStates.has(textarea)) {
-    console.log('[rumdl] Editor already set up, skipping');
-    return;
-  }
-
-  log('Setting up editor:', textarea.name || textarea.id);
+  log('Setting up editor:', textarea.placeholder || textarea.name || textarea.id || 'unnamed');
 
   // Create warning panel
   const panel = new WarningPanel();
-  console.log('[rumdl] Warning panel created');
 
   // Create gutter for inline markers
   const gutter = gutterMarkers.createGutter(textarea);
-  console.log('[rumdl] Gutter created:', !!gutter);
 
   // Create status button in toolbar (or floating badge for shadow DOM)
   const isInShadowDOM = textarea.getRootNode() instanceof ShadowRoot;
   const button = isInShadowDOM ? createFloatingBadge(textarea) : createLintButton(textarea);
-  console.log('[rumdl] Lint button/badge created:', !!button, isInShadowDOM ? '(floating)' : '(toolbar)');
 
   // Store state
   const state: EditorState = {
@@ -284,9 +276,7 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
   keyboardShortcuts.register(textarea, (action, ta) => handleShortcut(action, ta));
 
   // Initial lint
-  console.log('[rumdl] Starting initial lint');
   performLint(textarea);
-  console.log('[rumdl] Editor setup complete');
 }
 
 /**
@@ -595,17 +585,6 @@ async function handlePaste(e: ClipboardEvent, textarea: HTMLTextAreaElement): Pr
   setTimeout(async () => {
     await formatDocument(textarea);
   }, 0);
-}
-
-/**
- * Detect current site
- */
-function getCurrentSite(): 'github' | 'gitlab' | 'reddit' | 'unknown' {
-  const hostname = window.location.hostname;
-  if (hostname === 'github.com') return 'github';
-  if (hostname === 'gitlab.com' || hostname.endsWith('.gitlab.io')) return 'gitlab';
-  if (hostname.endsWith('reddit.com')) return 'reddit';
-  return 'unknown';
 }
 
 /**

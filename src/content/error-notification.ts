@@ -1,5 +1,7 @@
 // Error notification component for displaying user-visible errors
 
+import { escapeHtml } from '../shared/html-utils.js';
+
 let notificationElement: HTMLElement | null = null;
 
 /**
@@ -105,11 +107,3 @@ export function hideErrorNotification(): void {
   }
 }
 
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}

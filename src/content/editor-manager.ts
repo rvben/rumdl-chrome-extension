@@ -1,22 +1,15 @@
 // Editor Manager - detects and manages markdown editors across sites
 
+import { getCurrentSite } from '../shared/site-utils.js';
+
 // Debug mode - set to false for production
 const DEBUG = false;
 
 function log(...args: unknown[]): void {
-  if (DEBUG) log('', ...args);
+  if (DEBUG) console.log('[rumdl:editor]', ...args);
 }
 
 type EditorCallback = (editor: HTMLTextAreaElement, event: 'added' | 'removed') => void;
-
-// Detect current site
-function getCurrentSite(): 'github' | 'gitlab' | 'reddit' | 'unknown' {
-  const hostname = window.location.hostname;
-  if (hostname === 'github.com') return 'github';
-  if (hostname === 'gitlab.com' || hostname.endsWith('.gitlab.io')) return 'gitlab';
-  if (hostname.endsWith('reddit.com')) return 'reddit';
-  return 'unknown';
-}
 
 // Selectors for GitHub markdown editors
 const GITHUB_EDITOR_SELECTORS = [
@@ -275,7 +268,7 @@ export class EditorManager {
     log('Scanning Reddit shadow DOM...');
     for (const componentSelector of REDDIT_SHADOW_COMPONENTS) {
       const components = document.querySelectorAll(componentSelector);
-      console.log(`[rumdl] Found ${components.length} ${componentSelector} components`);
+      log(`Found ${components.length} ${componentSelector} components`);
 
       for (const component of components) {
         this.scanShadowRootRecursively(component);
@@ -289,11 +282,11 @@ export class EditorManager {
     const shadowRoot = element.shadowRoot;
     if (!shadowRoot) return;
 
-    console.log(`[rumdl] Scanning shadow root of <${element.tagName.toLowerCase()}> (depth ${depth})`);
+    log(`Scanning shadow root of <${element.tagName.toLowerCase()}> (depth ${depth})`);
 
     // Look for textareas directly in this shadow root
     const textareas = shadowRoot.querySelectorAll<HTMLTextAreaElement>('textarea');
-    console.log(`[rumdl] Found ${textareas.length} textareas at depth ${depth}`);
+    log(`Found ${textareas.length} textareas at depth ${depth}`);
 
     for (const textarea of textareas) {
       if (!this.knownEditors.has(textarea)) {
@@ -317,35 +310,15 @@ export class EditorManager {
   }
 
   private observeShadowRoot(component: Element, shadowRoot: ShadowRoot): void {
-    // Log initial content of shadow root
-    console.log(`[rumdl] Observing <${component.tagName.toLowerCase()}>, innerHTML:`, shadowRoot.innerHTML.slice(0, 300));
+    log(`Observing <${component.tagName.toLowerCase()}>`);
 
-    let mutationCount = 0;
     const observer = new MutationObserver(() => {
-      mutationCount++;
-      // Only log every 10th mutation to reduce spam
-      if (mutationCount % 10 === 1) {
-        console.log(`[rumdl] Mutation #${mutationCount} in <${component.tagName.toLowerCase()}>`);
-      }
-
       // Check for textareas inside shadow DOM
       const textareas = shadowRoot.querySelectorAll<HTMLTextAreaElement>('textarea');
-      if (textareas.length > 0) {
-        console.log(`[rumdl] Found ${textareas.length} textarea(s) in <${component.tagName.toLowerCase()}>`);
-        for (const textarea of textareas) {
-          const isKnown = this.knownEditors.has(textarea);
-          console.log(`[rumdl] Textarea "${textarea.placeholder || 'unnamed'}" - known: ${isKnown}`);
-          if (!isKnown) {
-            log('Adding new textarea to tracking');
-            this.handleNewEditor(textarea);
-          }
+      for (const textarea of textareas) {
+        if (!this.knownEditors.has(textarea)) {
+          this.handleNewEditor(textarea);
         }
-      }
-
-      // Check for contenteditable elements (Reddit might use these)
-      const editables = shadowRoot.querySelectorAll<HTMLElement>('[contenteditable="true"]');
-      if (editables.length > 0 && mutationCount === 1) {
-        console.log(`[rumdl] Found ${editables.length} contenteditable element(s) - not supported yet`);
       }
 
       // Also check for new nested shadow roots
@@ -378,8 +351,7 @@ export class EditorManager {
     log('Callback exists:', !!this.callback);
     this.callback?.(editor, 'added');
 
-    const site = getCurrentSite();
-    console.log(`[rumdl] New editor detected on ${site}:`, editor.placeholder || editor.name || editor.id || 'unnamed');
+    log('New editor detected:', editor.placeholder || editor.name || editor.id || 'unnamed');
   }
 
   private handleRemovedEditor(editor: HTMLTextAreaElement): void {
