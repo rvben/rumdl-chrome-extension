@@ -135,6 +135,10 @@ export class WarningPanel {
       countEl.textContent = warnings.length.toString();
       countEl.classList.toggle('success', warnings.length === 0);
     }
+    const labelEl = this.panel.querySelector('.rumdl-issues-label');
+    if (labelEl) {
+      labelEl.textContent = warnings.length === 1 ? 'issue' : 'issues';
+    }
 
     // Update lint time
     const timeEl = this.panel.querySelector('.rumdl-lint-time');
