@@ -165,7 +165,7 @@ async function init(): Promise<void> {
   document.addEventListener('pjax:end', handleNavigation);
   // GitLab uses Turbolinks
   document.addEventListener('turbolinks:load', handleNavigation);
-  // Reddit uses React Router - we detect via popstate
+  // Catch browser back/forward navigation
   window.addEventListener('popstate', handleNavigation);
 
   // Listen for config changes (store reference for cleanup)
@@ -247,9 +247,8 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
   // Create gutter for inline markers
   const gutter = gutterMarkers.createGutter(textarea);
 
-  // Create status button in toolbar (or floating badge for shadow DOM)
-  const isInShadowDOM = textarea.getRootNode() instanceof ShadowRoot;
-  const button = isInShadowDOM ? createFloatingBadge(textarea) : createLintButton(textarea);
+  // Create status button in toolbar
+  const button = createLintButton(textarea);
 
   // Store state
   const state: EditorState = {
@@ -597,91 +596,10 @@ function getToolbarSelectors(): string {
       return '[role="toolbar"], .toolbar-commenting, .tabnav-tabs, .form-actions';
     case 'gitlab':
       return '.md-header, .js-md-preview-button, .md-header-toolbar, .note-actions, .comment-toolbar';
-    case 'reddit':
-      return '.MarkdownEditor-toolbar, .c-form-actions, .submission-actions';
     default:
       // Try all selectors
       return '[role="toolbar"], .toolbar-commenting, .tabnav-tabs, .form-actions, .md-header, .js-md-preview-button, .md-header-toolbar';
   }
-}
-
-/**
- * Create a floating badge for textareas in shadow DOM
- */
-function createFloatingBadge(textarea: HTMLTextAreaElement): HTMLElement | null {
-  const badge = document.createElement('div');
-  badge.className = 'rumdl-floating-badge';
-  badge.setAttribute('aria-label', 'rumdl lint status');
-
-  // Use inline styles for shadow DOM compatibility
-  badge.style.cssText = `
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 6px;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    border-radius: 10px;
-    font-size: 10px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    z-index: 10;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    pointer-events: auto;
-    opacity: 0.7;
-  `;
-
-  badge.innerHTML = `
-    <span style="font-weight: 600;">rumdl</span>
-    <span class="rumdl-badge-count" style="
-      background: #2ea043;
-      color: white;
-      padding: 0 6px;
-      border-radius: 10px;
-      font-weight: 600;
-    ">0</span>
-  `;
-
-  badge.title = 'rumdl: No issues';
-
-  // Insert into the textarea's parent (inside shadow DOM)
-  const parent = textarea.parentElement;
-  if (parent) {
-    const parentPosition = getComputedStyle(parent).position;
-    if (parentPosition === 'static') {
-      parent.style.position = 'relative';
-    }
-    parent.appendChild(badge);
-  }
-
-  badge.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const state = editorStates.get(textarea);
-    if (state && config) {
-      if (state.isPanelVisible) {
-        state.panel.hide();
-        state.isPanelVisible = false;
-      } else {
-        state.panel.show(textarea, toLinterConfig(config));
-        state.panel.updateWarnings(state.warnings, state.lintTime);
-        state.isPanelVisible = true;
-      }
-    }
-  });
-
-  badge.addEventListener('mouseenter', () => {
-    badge.style.opacity = '1';
-  });
-
-  badge.addEventListener('mouseleave', () => {
-    badge.style.opacity = '0.7';
-  });
-
-  return badge;
 }
 
 /**
@@ -741,19 +659,11 @@ function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
 }
 
 /**
- * Update the lint status button or floating badge
+ * Update the lint status button
  */
 function updateButton(button: HTMLElement | null, count: number, lintTime: number): void {
   if (!button) return;
 
-  // Handle floating badge (shadow DOM)
-  const badgeCount = button.querySelector('.rumdl-badge-count') as HTMLElement;
-  if (badgeCount) {
-    badgeCount.textContent = count.toString();
-    badgeCount.style.background = count === 0 ? '#2ea043' : (count > 0 ? '#9a6700' : '#2ea043');
-  }
-
-  // Handle toolbar button
   const countEl = button.querySelector('.rumdl-status-count');
   if (countEl) {
     countEl.textContent = count.toString();

@@ -1,11 +1,11 @@
 # rumdl Browser Extension
 
-A Chrome extension that provides real-time Markdown linting for GitHub, GitLab, and Reddit using [rumdl](https://github.com/rvben/rumdl), a fast Rust-based Markdown linter.
+A Chrome extension that provides real-time Markdown linting for GitHub and GitLab using [rumdl](https://github.com/rvben/rumdl), a fast Rust-based Markdown linter.
 
 ## Features
 
 - **Real-time linting**: Lint your markdown as you type in issue descriptions, PR descriptions, comments, and more
-- **Multi-site support**: Works on GitHub, GitLab, and Reddit
+- **Multi-site support**: Works on GitHub and GitLab
 - **Visual indicators**: Gutter markers show warning locations directly in the editor
 - **Warning panel**: Side panel showing all issues with click-to-jump navigation
 - **Auto-fix**: Fix all auto-fixable issues with one click (Cmd/Ctrl+Shift+F)
@@ -68,11 +68,6 @@ A Chrome extension that provides real-time Markdown linting for GitHub, GitLab, 
 - Wiki pages
 - Snippets
 
-### Reddit
-- Post creation (new Reddit)
-- Comments (new Reddit)
-- Old Reddit text editors
-
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -101,7 +96,7 @@ This extension:
 - **Does NOT collect or transmit any data** - all linting happens locally in your browser
 - **Does NOT require any account or login**
 - **Does NOT access any data outside of markdown editors**
-- Only requests permissions for the supported sites (GitHub, GitLab, Reddit)
+- Only requests permissions for the supported sites (GitHub, GitLab)
 
 The WASM module runs entirely in your browser's sandbox with no network access.
 
@@ -118,7 +113,7 @@ The WASM module runs entirely in your browser's sandbox with no network access.
 
 ### Extension not working on a page
 - Reload the page after installing the extension
-- Check that the site is supported (GitHub, GitLab, Reddit)
+- Check that the site is supported (GitHub, GitLab)
 - For GitLab self-hosted instances, add the domain to the extension permissions
 
 ### Fix button not working

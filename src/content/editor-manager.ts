@@ -1,7 +1,5 @@
 // Editor Manager - detects and manages markdown editors across sites
 
-import { getCurrentSite } from '../shared/site-utils.js';
-
 // Debug mode - set to false for production
 const DEBUG = false;
 
@@ -47,50 +45,13 @@ const GITLAB_EDITOR_SELECTORS = [
   'textarea.js-vue-markdown-field',
 ];
 
-// Reddit uses web components with Shadow DOM for the new editor
-// We need special handling to query into shadow roots
-const REDDIT_EDITOR_SELECTORS = [
-  // Old Reddit uses textareas (still works with regular selectors)
-  'textarea.usertext-edit',
-  'textarea[name="text"]',
-  'textarea.c-form-control',
-];
-
-// Reddit web components that contain textareas in shadow DOM
-const REDDIT_SHADOW_COMPONENTS = [
-  'shreddit-markdown-composer',
-  'shreddit-composer',
-];
-
-// Get selectors based on current site
-function getSelectorsForSite(): string[] {
-  const site = getCurrentSite();
-  switch (site) {
-    case 'github':
-      return GITHUB_EDITOR_SELECTORS;
-    case 'gitlab':
-      return GITLAB_EDITOR_SELECTORS;
-    case 'reddit':
-      return REDDIT_EDITOR_SELECTORS;
-    default:
-      // Return all selectors for unknown sites
-      return [
-        ...GITHUB_EDITOR_SELECTORS,
-        ...GITLAB_EDITOR_SELECTORS,
-        ...REDDIT_EDITOR_SELECTORS,
-      ];
-  }
-}
-
 const COMBINED_SELECTOR = [
   ...GITHUB_EDITOR_SELECTORS,
   ...GITLAB_EDITOR_SELECTORS,
-  ...REDDIT_EDITOR_SELECTORS,
 ].join(', ');
 
 export class EditorManager {
   private observers: Map<HTMLTextAreaElement, MutationObserver> = new Map();
-  private shadowObservers: Map<Element, MutationObserver> = new Map();
   private knownEditors: Set<HTMLTextAreaElement> = new Set();
   private callback: EditorCallback | null = null;
   private documentObserver: MutationObserver | null = null;
@@ -125,21 +86,6 @@ export class EditorManager {
             if (element.querySelector && element.querySelector(COMBINED_SELECTOR)) {
               shouldScan = true;
               break;
-            }
-
-            // Check for Reddit shadow DOM components
-            const site = getCurrentSite();
-            if (site === 'reddit') {
-              for (const componentSelector of REDDIT_SHADOW_COMPONENTS) {
-                if (element.matches && element.matches(componentSelector)) {
-                  shouldScan = true;
-                  break;
-                }
-                if (element.querySelector && element.querySelector(componentSelector)) {
-                  shouldScan = true;
-                  break;
-                }
-              }
             }
           }
         }
@@ -188,14 +134,9 @@ export class EditorManager {
     }
     this.observers.clear();
 
-    // Clean up shadow root observers
-    for (const observer of this.shadowObservers.values()) {
-      observer.disconnect();
-    }
-    this.shadowObservers.clear();
-
-    // Notify removal of all editors
+    // Clean up and notify removal of all editors
     for (const editor of this.knownEditors) {
+      delete editor.dataset.rumdlManaged;
       this.callback?.(editor, 'removed');
     }
     this.knownEditors.clear();
@@ -208,36 +149,14 @@ export class EditorManager {
    */
   rescan(): void {
     // Remove editors that are no longer in the DOM
-    // For shadow DOM editors, check if their host component still exists
     for (const editor of this.knownEditors) {
-      const isInDOM = document.contains(editor);
-      const isInShadowDOM = this.isEditorInShadowDOM(editor);
-
-      if (!isInDOM && !isInShadowDOM) {
+      if (!document.contains(editor)) {
         this.handleRemovedEditor(editor);
-      }
-    }
-
-    // Clean up shadow observers for removed components
-    for (const [component, observer] of this.shadowObservers) {
-      if (!document.contains(component)) {
-        observer.disconnect();
-        this.shadowObservers.delete(component);
       }
     }
 
     // Find new editors
     this.scanForEditors();
-  }
-
-  private isEditorInShadowDOM(editor: HTMLTextAreaElement): boolean {
-    // Check if editor is inside a shadow root of a known component
-    const rootNode = editor.getRootNode();
-    if (rootNode instanceof ShadowRoot) {
-      const host = rootNode.host;
-      return document.contains(host);
-    }
-    return false;
   }
 
   /**
@@ -248,7 +167,6 @@ export class EditorManager {
   }
 
   private scanForEditors(): void {
-    // Scan regular DOM for editors
     const editors = document.querySelectorAll<HTMLTextAreaElement>(COMBINED_SELECTOR);
 
     for (const editor of editors) {
@@ -256,101 +174,15 @@ export class EditorManager {
         this.handleNewEditor(editor);
       }
     }
-
-    // Scan Shadow DOM for Reddit editors
-    const site = getCurrentSite();
-    if (site === 'reddit') {
-      this.scanRedditShadowDOM();
-    }
-  }
-
-  private scanRedditShadowDOM(): void {
-    log('Scanning Reddit shadow DOM...');
-    for (const componentSelector of REDDIT_SHADOW_COMPONENTS) {
-      const components = document.querySelectorAll(componentSelector);
-      log(`Found ${components.length} ${componentSelector} components`);
-
-      for (const component of components) {
-        this.scanShadowRootRecursively(component);
-      }
-    }
-  }
-
-  private scanShadowRootRecursively(element: Element, depth: number = 0): void {
-    if (depth > 5) return; // Prevent infinite recursion
-
-    const shadowRoot = element.shadowRoot;
-    if (!shadowRoot) return;
-
-    log(`Scanning shadow root of <${element.tagName.toLowerCase()}> (depth ${depth})`);
-
-    // Look for textareas directly in this shadow root
-    const textareas = shadowRoot.querySelectorAll<HTMLTextAreaElement>('textarea');
-    log(`Found ${textareas.length} textareas at depth ${depth}`);
-
-    for (const textarea of textareas) {
-      if (!this.knownEditors.has(textarea)) {
-        log('Found textarea:', textarea.placeholder || textarea.name || 'unnamed');
-        this.handleNewEditor(textarea);
-      }
-    }
-
-    // Set up observer on this shadow root
-    if (!this.shadowObservers.has(element)) {
-      this.observeShadowRoot(element, shadowRoot);
-    }
-
-    // Recursively search nested web components with shadow roots
-    const nestedComponents = shadowRoot.querySelectorAll('*');
-    for (const nested of nestedComponents) {
-      if (nested.shadowRoot) {
-        this.scanShadowRootRecursively(nested, depth + 1);
-      }
-    }
-  }
-
-  private observeShadowRoot(component: Element, shadowRoot: ShadowRoot): void {
-    log(`Observing <${component.tagName.toLowerCase()}>`);
-
-    const observer = new MutationObserver(() => {
-      // Check for textareas inside shadow DOM
-      const textareas = shadowRoot.querySelectorAll<HTMLTextAreaElement>('textarea');
-      for (const textarea of textareas) {
-        if (!this.knownEditors.has(textarea)) {
-          this.handleNewEditor(textarea);
-        }
-      }
-
-      // Also check for new nested shadow roots
-      const nestedComponents = shadowRoot.querySelectorAll('*');
-      for (const nested of nestedComponents) {
-        if (nested.shadowRoot && !this.shadowObservers.has(nested)) {
-          this.scanShadowRootRecursively(nested, 1);
-        }
-      }
-    });
-
-    observer.observe(shadowRoot, {
-      childList: true,
-      subtree: true
-    });
-
-    this.shadowObservers.set(component, observer);
   }
 
   private handleNewEditor(editor: HTMLTextAreaElement): void {
     log('handleNewEditor called for:', editor.placeholder || editor.name || editor.id || 'unnamed');
 
-    // Mark as known
     this.knownEditors.add(editor);
-
-    // Mark with data attribute to avoid double-processing
     editor.dataset.rumdlManaged = 'true';
 
-    // Notify callback
-    log('Callback exists:', !!this.callback);
     this.callback?.(editor, 'added');
-
     log('New editor detected:', editor.placeholder || editor.name || editor.id || 'unnamed');
   }
 
@@ -361,10 +193,7 @@ export class EditorManager {
     this.observers.get(editor)?.disconnect();
     this.observers.delete(editor);
 
-    // Remove marker
     delete editor.dataset.rumdlManaged;
-
-    // Notify callback
     this.callback?.(editor, 'removed');
 
     log('Editor removed:', editor.name || editor.id || 'unnamed');

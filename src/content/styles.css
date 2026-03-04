@@ -30,17 +30,11 @@
   /* GitLab uses different variable names, we provide consistent fallbacks */
 }
 
-/* Reddit light mode adjustments */
-.theme-light {
-  /* Reddit uses its own theme system */
-}
-
-/* Dark mode - GitHub's dark theme */
+/* Dark mode */
 [data-color-mode="dark"],
 [data-dark-theme="dark"],
 [data-theme="dark"],
 .gl-dark,
-.theme-dark,
 .dark {
   --color-fg-default: #e6edf3;
   --color-fg-muted: #8b949e;

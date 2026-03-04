@@ -1,4 +1,4 @@
-.PHONY: all build clean typecheck lint test test-unit test-e2e test-coverage install package watch rebuild-wasm check ci check-size
+.PHONY: all build clean typecheck lint test test-unit test-e2e test-smoke test-coverage install package watch rebuild-wasm check ci check-size
 
 # Default target
 all: build
@@ -33,6 +33,10 @@ test-coverage:
 # Run E2E tests (requires puppeteer)
 test-e2e: build
 	npm run test:e2e
+
+# Run selector smoke tests against real websites (requires playwright)
+test-smoke: build
+	npm run test:smoke
 
 # Run all tests (typecheck + unit tests)
 test: typecheck test-unit

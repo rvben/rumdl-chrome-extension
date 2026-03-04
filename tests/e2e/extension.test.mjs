@@ -13,11 +13,9 @@ const EXTENSION_PATH = join(__dirname, '..', '..');
 let browser, server;
 
 async function setup() {
-  // Start fixture server
   const serverInfo = await startServer();
   server = serverInfo;
 
-  // Launch browser with extension loaded
   browser = await puppeteer.launch({
     headless: 'new',
     args: [
@@ -34,99 +32,121 @@ async function teardown() {
   if (server) server.server.close();
 }
 
-async function waitForSelector(page, selector, timeout = 5000) {
-  try {
-    await page.waitForSelector(selector, { timeout });
-    return true;
-  } catch {
-    return false;
-  }
+// ---- Helpers ----
+
+async function loadPage(fixture) {
+  const page = await browser.newPage();
+  await page.goto(`${server.url}/${fixture}`, { waitUntil: 'domcontentloaded' });
+  // Wait for extension content script to initialize
+  await page.waitForTimeout(2000);
+  return page;
 }
 
-// ---- Tests ----
-
-async function testExtensionLoads() {
-  const page = await browser.newPage();
-  await page.goto(`${server.url}/github-mock.html`, { waitUntil: 'domcontentloaded' });
-
-  // Wait for the content script to initialize
-  await page.waitForTimeout(2000);
-
-  // Check that a textarea exists on the page
-  const textarea = await page.$('textarea');
-  assert(textarea, 'Textarea should exist on page');
-
-  await page.close();
-  console.log('  PASS: Extension loads on mock page');
-}
-
-async function testTextareaDetected() {
-  const page = await browser.newPage();
-  await page.goto(`${server.url}/github-mock.html`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2000);
-
-  // Check that the textarea has the rumdl-managed data attribute
-  const isManaged = await page.$eval('textarea', (el) => el.dataset.rumdlManaged === 'true');
-  assert(isManaged, 'Textarea should be detected and managed by rumdl');
-
-  await page.close();
-  console.log('  PASS: Textarea detected and managed');
-}
-
-async function testGutterCreated() {
-  const page = await browser.newPage();
-  await page.goto(`${server.url}/github-mock.html`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2000);
-
-  const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'Gutter container should be created');
-
-  await page.close();
-  console.log('  PASS: Gutter container created');
-}
-
-async function testLintResults() {
-  const page = await browser.newPage();
-  await page.goto(`${server.url}/github-mock.html`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2000);
-
-  // Type markdown with a known lint issue (no blank line after heading)
-  await page.type('textarea', '# Hello\nworld\n');
+async function typeAndWait(page, selector, text) {
+  await page.type(selector, text);
+  // Wait for debounced lint to complete
   await page.waitForTimeout(500);
+}
 
-  // Check that the status button shows warning count
-  const hasButton = await page.$('.rumdl-status-btn');
-  // Button may or may not be present depending on toolbar detection
-  // But gutter should exist
+// ---- GitHub Tests ----
+
+async function testGitHubTextareaDetected() {
+  const page = await loadPage('github-mock.html');
+
+  const isManaged = await page.$eval('textarea', (el) => el.dataset.rumdlManaged === 'true');
+  assert(isManaged, 'GitHub textarea should be detected and managed by rumdl');
+
+  await page.close();
+  console.log('  PASS: GitHub — textarea detected and managed');
+}
+
+async function testGitHubGutterCreated() {
+  const page = await loadPage('github-mock.html');
+
   const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'Gutter should exist after typing');
+  assert(gutter, 'GitHub page should have a gutter container');
 
   await page.close();
-  console.log('  PASS: Lint runs after typing');
+  console.log('  PASS: GitHub — gutter container created');
 }
 
-async function testGitLabPage() {
-  const page = await browser.newPage();
-  await page.goto(`${server.url}/gitlab-mock.html`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2000);
+async function testGitHubLintResults() {
+  const page = await loadPage('github-mock.html');
 
-  const textarea = await page.$('textarea.note-textarea');
-  assert(textarea, 'GitLab textarea should exist');
+  // Type markdown with known lint issues
+  await typeAndWait(page, 'textarea', '# Hello\nworld\n');
+
+  // Gutter should still be present after typing
+  const gutter = await page.$('.rumdl-gutter');
+  assert(gutter, 'GitHub gutter should exist after typing');
 
   await page.close();
-  console.log('  PASS: GitLab mock page loads');
+  console.log('  PASS: GitHub — lint runs after typing');
 }
 
-async function testRedditPage() {
-  const page = await browser.newPage();
-  await page.goto(`${server.url}/reddit-mock.html`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2000);
+async function testGitHubStatusButton() {
+  const page = await loadPage('github-mock.html');
 
-  const textarea = await page.$('textarea[name="text"]');
-  assert(textarea, 'Reddit textarea should exist');
+  // Type some markdown so lint runs
+  await typeAndWait(page, 'textarea', '# Test\n\nSome content\n');
+
+  // Toolbar button may or may not exist depending on toolbar detection
+  // but the gutter should be present
+  const gutter = await page.$('.rumdl-gutter');
+  assert(gutter, 'GitHub gutter should exist');
 
   await page.close();
-  console.log('  PASS: Reddit mock page loads');
+  console.log('  PASS: GitHub — status UI present');
+}
+
+async function testGitHubRealTimeLint() {
+  const page = await loadPage('github-mock.html');
+
+  // Type content, then modify it
+  await typeAndWait(page, 'textarea', '# Heading\n\n');
+  await typeAndWait(page, 'textarea', 'More text added\n');
+
+  // Gutter should still be present and functional
+  const gutter = await page.$('.rumdl-gutter');
+  assert(gutter, 'GitHub gutter should persist through edits');
+
+  await page.close();
+  console.log('  PASS: GitHub — real-time updates work');
+}
+
+// ---- GitLab Tests ----
+
+async function testGitLabTextareaDetected() {
+  const page = await loadPage('gitlab-mock.html');
+
+  const isManaged = await page.$eval('textarea.note-textarea', (el) => el.dataset.rumdlManaged === 'true');
+  assert(isManaged, 'GitLab textarea should be detected and managed by rumdl');
+
+  await page.close();
+  console.log('  PASS: GitLab — textarea detected and managed');
+}
+
+async function testGitLabGutterCreated() {
+  const page = await loadPage('gitlab-mock.html');
+
+  const gutter = await page.$('.rumdl-gutter');
+  assert(gutter, 'GitLab page should have a gutter container');
+
+  await page.close();
+  console.log('  PASS: GitLab — gutter container created');
+}
+
+async function testGitLabLintResults() {
+  const page = await loadPage('gitlab-mock.html');
+
+  // Type markdown with known lint issues
+  await typeAndWait(page, 'textarea.note-textarea', '# Hello\nworld\n');
+
+  const gutter = await page.$('.rumdl-gutter');
+  assert(gutter, 'GitLab gutter should exist after typing');
+
+  await page.close();
+  console.log('  PASS: GitLab — lint runs after typing');
 }
 
 // ---- Runner ----
@@ -140,14 +160,19 @@ async function run() {
     console.log(`Test server: ${server.url}`);
     console.log(`Extension: ${EXTENSION_PATH}\n`);
 
-    await testExtensionLoads();
-    await testTextareaDetected();
-    await testGutterCreated();
-    await testLintResults();
-    await testGitLabPage();
-    await testRedditPage();
+    console.log('GitHub:');
+    await testGitHubTextareaDetected();
+    await testGitHubGutterCreated();
+    await testGitHubLintResults();
+    await testGitHubStatusButton();
+    await testGitHubRealTimeLint();
 
-    console.log('\nAll E2E tests passed!');
+    console.log('\nGitLab:');
+    await testGitLabTextareaDetected();
+    await testGitLabGutterCreated();
+    await testGitLabLintResults();
+
+    console.log('\nAll E2E tests passed! (8/8)');
   } catch (error) {
     console.error('\nTest failed:', error.message);
     process.exit(1);

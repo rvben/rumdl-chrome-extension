@@ -2,11 +2,11 @@
 
 ## Short Description (132 chars max)
 
-Real-time Markdown linting for GitHub, GitLab & Reddit. Catch issues as you type with inline warnings and one-click auto-fix.
+Real-time Markdown linting for GitHub & GitLab. Catch issues as you type with inline warnings and one-click auto-fix.
 
 ## Detailed Description
 
-rumdl brings real-time Markdown linting directly to your browser. Get instant feedback as you write issues, pull requests, comments, and wiki pages on GitHub, GitLab, and Reddit.
+rumdl brings real-time Markdown linting directly to your browser. Get instant feedback as you write issues, pull requests, comments, and wiki pages on GitHub and GitLab.
 
 **Features:**
 - Real-time linting as you type with 60+ rules
@@ -21,7 +21,6 @@ rumdl brings real-time Markdown linting directly to your browser. Get instant fe
 **Supported sites:**
 - GitHub (issues, PRs, comments, wikis, discussions)
 - GitLab (issues, merge requests, comments, wikis)
-- Reddit (posts and comments, including new Reddit)
 
 **Keyboard shortcuts:**
 - Cmd/Ctrl+Shift+L — Toggle warning panel

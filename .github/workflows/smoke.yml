@@ -1,0 +1,31 @@
+name: Selector Smoke Test
+
+on:
+  schedule:
+    # Weekly on Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Build extension
+        run: make build
+
+      - name: Run selector smoke test
+        run: xvfb-run make test-smoke

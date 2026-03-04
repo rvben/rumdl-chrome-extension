@@ -8,7 +8,7 @@ The rumdl Chrome extension does **not** collect, transmit, or store any user dat
 
 ## What the extension accesses
 
-- **Textarea content** on supported sites (GitHub, GitLab, Reddit) — read in-memory only for linting. Never transmitted anywhere.
+- **Textarea content** on supported sites (GitHub, GitLab) — read in-memory only for linting. Never transmitted anywhere.
 - **Chrome storage** (`chrome.storage.sync`) — used solely to persist your extension settings (enabled rules, line length, etc.) across devices via your Chrome profile.
 
 ## What the extension does NOT do
@@ -25,7 +25,7 @@ The rumdl Chrome extension does **not** collect, transmit, or store any user dat
 |---|---|
 | `storage` | Save your extension settings |
 | `activeTab` | Read textarea content on the current tab for linting |
-| Host permissions (github.com, gitlab.com, reddit.com) | Inject the content script that enables linting on these sites |
+| Host permissions (github.com, gitlab.com) | Inject the content script that enables linting on these sites |
 
 ## Open source
 

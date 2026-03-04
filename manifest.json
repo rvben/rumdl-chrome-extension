@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "rumdl",
   "version": "1.0.0",
-  "description": "Real-time Markdown linting with auto-fix for GitHub, GitLab, and Reddit. Powered by the rumdl Rust linter.",
+  "description": "Real-time Markdown linting with auto-fix for GitHub and GitLab. Powered by the rumdl Rust linter.",
   "minimum_chrome_version": "90",
   "icons": {
     "16": "icons/icon-16.png",
@@ -17,9 +17,7 @@
   "host_permissions": [
     "https://github.com/*",
     "https://gitlab.com/*",
-    "https://*.gitlab.io/*",
-    "https://www.reddit.com/*",
-    "https://old.reddit.com/*"
+    "https://*.gitlab.io/*"
   ],
   "background": {
     "service_worker": "dist/background/service-worker.js",
@@ -30,9 +28,7 @@
       "matches": [
         "https://github.com/*",
         "https://gitlab.com/*",
-        "https://*.gitlab.io/*",
-        "https://www.reddit.com/*",
-        "https://old.reddit.com/*"
+        "https://*.gitlab.io/*"
       ],
       "js": ["dist/content/content-script.js"],
       "css": ["dist/content/styles.css"],
@@ -55,9 +51,7 @@
       "matches": [
         "https://github.com/*",
         "https://gitlab.com/*",
-        "https://*.gitlab.io/*",
-        "https://www.reddit.com/*",
-        "https://old.reddit.com/*"
+        "https://*.gitlab.io/*"
       ]
     }
   ]
