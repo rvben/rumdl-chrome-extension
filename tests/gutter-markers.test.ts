@@ -211,13 +211,14 @@ describe('GutterMarkers', () => {
       expect(marker.style.backgroundColor).toBe('rgb(207, 34, 46)'); // error color
     });
 
-    it('renders vertical bars with rounded ends', () => {
+    it('renders 8px circles', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
 
       const marker = gutter.querySelector('div') as HTMLElement;
-      expect(marker.style.width).toBe('3px');
-      expect(marker.style.borderRadius).toBe('2px');
+      expect(marker.style.width).toBe('8px');
+      expect(marker.style.height).toBe('8px');
+      expect(marker.style.borderRadius).toBe('50%');
     });
 
     it('sets pointer-events to auto for interactivity', () => {

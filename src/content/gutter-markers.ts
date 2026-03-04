@@ -1,4 +1,4 @@
-// Gutter Markers - vertical bars indicating lines with issues
+// Gutter Markers - circles indicating lines with issues
 // Uses inline styles instead of CSS classes for Shadow DOM compatibility
 
 import type { LintWarning } from '../shared/types.js';
@@ -50,11 +50,11 @@ export class GutterMarkers {
     const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
     const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
 
-    // Position bars in left padding area, just before text starts
+    // Position circles in left padding area, just before text starts
     const paddingLeft = parseFloat(computedStyle.paddingLeft) || 12;
-    const barWidth = 3;
-    const gap = 4;
-    const gutterLeft = Math.max(2, paddingLeft - barWidth - gap);
+    const dotSize = 8;
+    const gap = 3;
+    const gutterLeft = Math.max(2, paddingLeft - dotSize - gap);
 
     const syncDimensions = () => {
       // Keep container narrow and only in the gutter area to avoid blocking clicks
@@ -62,7 +62,7 @@ export class GutterMarkers {
         position: absolute;
         top: ${textarea.offsetTop + paddingTop}px;
         left: ${textarea.offsetLeft + gutterLeft}px;
-        width: ${barWidth}px;
+        width: ${dotSize}px;
         height: ${textarea.offsetHeight - paddingTop * 2}px;
         pointer-events: none;
         overflow: visible;
@@ -175,7 +175,7 @@ export class GutterMarkers {
       lineWarnings.set(warning.line, lineList);
     }
 
-    // Create vertical bar marker for each line with warnings
+    // Create circle marker for each line with warnings
     for (const [line, lineWarningList] of lineWarnings) {
       const severity = this.getHighestSeverity(lineWarningList);
 
@@ -188,11 +188,12 @@ export class GutterMarkers {
       const color = severityColors[severity.toLowerCase()] || severityColors.warning;
 
       const marker = document.createElement('div');
-      // Vertical bar spanning the full line height, with rounded ends
+      // 8px circle, vertically centered on the line
       marker.style.cssText = `
         position: absolute;
-        width: 3px;
-        border-radius: 2px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
         background-color: ${color};
         pointer-events: auto;
         cursor: pointer;
@@ -200,11 +201,10 @@ export class GutterMarkers {
         opacity: 0.8;
       `;
 
-      // Position bar to span the full line height with 2px vertical padding
+      // Center the circle vertically on the line (8px dot = 4px offset)
       const lineY = linePositions[line - 1] ?? (line - 1) * state.lineHeight;
-      const verticalPad = 2;
-      marker.style.top = `${lineY + verticalPad}px`;
-      marker.style.height = `${state.lineHeight - verticalPad * 2}px`;
+      const top = lineY + (state.lineHeight / 2) - 4;
+      marker.style.top = `${top}px`;
       marker.style.left = '0px';
 
       // Hover effect: full opacity + soft glow
