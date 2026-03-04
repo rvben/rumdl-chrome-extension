@@ -16,10 +16,15 @@ export async function sendMessage(message: MessageType): Promise<MessageResponse
 }
 
 // Convenience functions for specific message types
-export async function lint(content: string, config: LinterConfig): Promise<LintWarning[]> {
+export interface LintResult {
+  warnings: LintWarning[];
+  lintTimeMs: number;
+}
+
+export async function lint(content: string, config: LinterConfig): Promise<LintResult> {
   const response = await sendMessage({ type: 'LINT', content, config });
   if (response.type === 'LINT_RESULT') {
-    return response.warnings;
+    return { warnings: response.warnings, lintTimeMs: response.lintTimeMs };
   } else if (response.type === 'ERROR') {
     throw new Error(response.message);
   }

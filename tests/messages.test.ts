@@ -64,12 +64,12 @@ describe('messages', () => {
 
       mockChrome.runtime.sendMessage.mockImplementation(
         (_msg: unknown, callback: (response: unknown) => void) => {
-          callback({ type: 'LINT_RESULT', warnings: mockWarnings });
+          callback({ type: 'LINT_RESULT', warnings: mockWarnings, lintTimeMs: 42.5 });
         }
       );
 
       const result = await lint('# Test', { flavor: 'standard' });
-      expect(result).toEqual(mockWarnings);
+      expect(result).toEqual({ warnings: mockWarnings, lintTimeMs: 42.5 });
       expect(mockChrome.runtime.sendMessage).toHaveBeenCalledWith(
         { type: 'LINT', content: '# Test', config: { flavor: 'standard' } },
         expect.any(Function)

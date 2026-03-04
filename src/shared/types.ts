@@ -79,7 +79,7 @@ export type MessageType =
   | { type: 'PING' };
 
 export type MessageResponse =
-  | { type: 'LINT_RESULT'; warnings: LintWarning[] }
+  | { type: 'LINT_RESULT'; warnings: LintWarning[]; lintTimeMs: number }
   | { type: 'FIX_RESULT'; content: string }
   | { type: 'CONFIG_RESULT'; config: RumdlConfig }
   | { type: 'VERSION_RESULT'; version: string }

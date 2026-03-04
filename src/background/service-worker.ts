@@ -131,8 +131,8 @@ function safeJsonParse<T>(json: string, fallback: T): T {
   }
 }
 
-// Handle lint request
-async function handleLint(content: string, config: LinterConfig): Promise<LintWarning[]> {
+// Handle lint request — returns warnings and the time spent in WASM check()
+async function handleLint(content: string, config: LinterConfig): Promise<{ warnings: LintWarning[]; lintTimeMs: number }> {
   await initializeWasm();
 
   if (!wasmModule) {
@@ -140,8 +140,11 @@ async function handleLint(content: string, config: LinterConfig): Promise<LintWa
   }
 
   const linterInstance = getLinter(config);
+  const start = performance.now();
   const resultJson = linterInstance.check(content);
-  return safeJsonParse<LintWarning[]>(resultJson, []);
+  const lintTimeMs = performance.now() - start;
+  const warnings = safeJsonParse<LintWarning[]>(resultJson, []);
+  return { warnings, lintTimeMs };
 }
 
 // Handle fix request
@@ -195,8 +198,8 @@ chrome.runtime.onMessage.addListener(
       try {
         switch (message.type) {
           case 'LINT': {
-            const warnings = await handleLint(message.content, message.config);
-            sendResponse({ type: 'LINT_RESULT', warnings });
+            const result = await handleLint(message.content, message.config);
+            sendResponse({ type: 'LINT_RESULT', warnings: result.warnings, lintTimeMs: result.lintTimeMs });
             break;
           }
 

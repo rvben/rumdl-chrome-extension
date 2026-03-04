@@ -451,19 +451,18 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
       return;
     }
 
-    const startTime = performance.now();
     const linterConfig = toLinterConfig(config);
     log('Linting with config:', JSON.stringify(linterConfig));
-    const warnings = await lint(content, linterConfig);
-    const lintTime = performance.now() - startTime;
+    const result = await lint(content, linterConfig);
+    const { warnings, lintTimeMs } = result;
     log('Warnings received:', warnings.length, 'fixable:', warnings.filter(w => w.fix).length);
 
     state.warnings = warnings;
-    state.lintTime = lintTime;
+    state.lintTime = lintTimeMs;
 
     // Update UI
-    state.panel.updateWarnings(warnings, lintTime);
-    updateButton(state.button, warnings.length, lintTime);
+    state.panel.updateWarnings(warnings, lintTimeMs);
+    updateButton(state.button, warnings.length, lintTimeMs);
 
     // Fix callback for gutter tooltip
     const handleFix = (warning: LintWarning) => {
@@ -483,7 +482,7 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
 
     gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
 
-    log(`Lint complete: ${warnings.length} warning(s) in ${lintTime.toFixed(1)}ms`);
+    log(`Lint complete: ${warnings.length} warning(s) in ${lintTimeMs.toFixed(1)}ms`);
   } catch (error) {
     logError('Lint failed:', error);
     // Mark service worker as unhealthy to trigger recovery check on next lint
