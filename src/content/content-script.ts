@@ -122,8 +122,12 @@ async function init(): Promise<void> {
   }
   log('Service worker ready');
 
-  // Check WASM health
-  const status = await getStatus();
+  // Wait for WASM to initialize (async fetch of ~4MB binary)
+  let status = await getStatus();
+  for (let i = 0; i < 25 && !status.wasmInitialized && !status.wasmError; i++) {
+    await new Promise(r => setTimeout(r, 200));
+    status = await getStatus();
+  }
   if (!status.wasmInitialized) {
     logError('WASM not initialized:', status.wasmError);
     showErrorNotification(

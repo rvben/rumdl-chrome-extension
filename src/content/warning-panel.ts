@@ -304,34 +304,30 @@ export class WarningPanel {
   }
 
   /**
-   * Position the panel near the textarea
+   * Position the panel near the textarea.
+   * Anchored to the top-right corner of the textarea, overlaying the editor
+   * content. This avoids clipping behind site sidebars (GitHub, GitLab).
    */
   private positionPanel(textarea: HTMLTextAreaElement): void {
     if (!this.panel) return;
 
     const rect = textarea.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const panelWidth = 320;
 
-    // Calculate a sensible max-height (at least 300px, capped at 500px)
-    const maxPanelHeight = Math.min(500, Math.max(300, viewportHeight - 40));
+    // Max height: fit between the textarea top and the viewport bottom
+    const maxPanelHeight = Math.min(500, Math.max(200, viewportHeight - rect.top - 20));
 
-    // Position to the right of the textarea if space allows, otherwise bottom-right fixed
-    if (rect.right + 320 < viewportWidth) {
-      this.panel.style.cssText = `
-        position: fixed;
-        top: ${Math.max(10, rect.top)}px;
-        left: ${rect.right + 10}px;
-        max-height: ${maxPanelHeight}px;
-      `;
-    } else {
-      this.panel.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        max-height: ${maxPanelHeight}px;
-      `;
-    }
+    // Anchor to the top-right of the textarea, inset so it doesn't overflow
+    const left = Math.max(10, rect.right - panelWidth - 8);
+    const top = Math.max(10, rect.top + 4);
+
+    this.panel.style.cssText = `
+      position: fixed;
+      top: ${top}px;
+      left: ${left}px;
+      max-height: ${maxPanelHeight}px;
+    `;
   }
 
   /**
