@@ -1,0 +1,90 @@
+name: Auto-update on rumdl release
+
+on:
+  repository_dispatch:
+    types: [rumdl_release]
+  schedule:
+    # Poll for new rumdl-wasm releases every 6 hours as a fallback
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'rumdl-wasm version to update to (without v prefix)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Get rumdl version
+        id: version
+        run: |
+          if [ -n "${{ github.event.client_payload.version }}" ]; then
+            RUMDL_VERSION="${{ github.event.client_payload.version }}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            RUMDL_VERSION="${{ inputs.version }}"
+          else
+            RUMDL_VERSION=$(npm view rumdl-wasm version)
+          fi
+          echo "rumdl_version=$RUMDL_VERSION" >> $GITHUB_OUTPUT
+          echo "Updating to rumdl-wasm@$RUMDL_VERSION"
+
+      - name: Check if update needed
+        id: check
+        run: |
+          CURRENT=$(jq -r '.dependencies["rumdl-wasm"]' package.json | sed 's/[^0-9.]//g')
+          NEW="${{ steps.version.outputs.rumdl_version }}"
+
+          if [ "$CURRENT" = "$NEW" ]; then
+            echo "Already at version $NEW, skipping update"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Updating from $CURRENT to $NEW"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update rumdl-wasm
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          npm install rumdl-wasm@${{ steps.version.outputs.rumdl_version }} --save-exact
+
+      - name: Install all dependencies
+        if: steps.check.outputs.skip != 'true'
+        run: make install
+
+      - name: Build and verify
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          make build
+
+          if [ ! -f dist/wasm/rumdl_lib_bg.wasm ]; then
+            echo "Error: WASM binary not found in dist/wasm/"
+            exit 1
+          fi
+          echo "WASM binary: $(wc -c < dist/wasm/rumdl_lib_bg.wasm) bytes"
+
+      - name: Run tests
+        if: steps.check.outputs.skip != 'true'
+        run: make test
+
+      - name: Commit
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add package.json package-lock.json
+          git commit -m "chore: update rumdl-wasm to ${{ steps.version.outputs.rumdl_version }}"
+          git push origin main

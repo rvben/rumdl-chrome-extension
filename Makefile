@@ -1,4 +1,4 @@
-.PHONY: all build clean typecheck lint test test-unit test-e2e test-smoke test-coverage install package watch rebuild-wasm check ci check-size
+.PHONY: all build clean typecheck lint test test-unit test-e2e test-smoke test-coverage install package watch check ci check-size
 
 # Default target
 all: build
@@ -54,11 +54,6 @@ package:
 # Development watch mode
 watch:
 	npm run watch
-
-# Rebuild WASM from rumdl (requires wasm-pack)
-rebuild-wasm:
-	cd ../rumdl/wasm-demo && wasm-pack build --target web
-	npm run build:wasm
 
 # Check extension zip size (Chrome Web Store limit: 100MB)
 check-size: package

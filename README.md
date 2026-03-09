@@ -148,22 +148,20 @@ make check          # Lint + test + build
 make package        # Create rumdl-extension.zip
 make ci             # Full CI pipeline (install + check + package)
 make check-size     # Verify extension size is under Chrome Web Store limit
-make rebuild-wasm   # Rebuild WASM from rumdl source
 make watch          # Development watch mode
 ```
 
-### Building the WASM Module
+### WASM Module
 
-The WASM module is built from the main rumdl repository:
+The WASM module is provided by the [`rumdl-wasm`](https://www.npmjs.com/package/rumdl-wasm) npm package.
+It is installed via `npm install` and the binary is copied to `dist/wasm/` during build.
+An auto-update workflow bumps the version when new releases are published.
 
-```bash
-make rebuild-wasm
-```
-
-Or manually:
+To manually update:
 
 ```bash
-cd ../rumdl/wasm-demo && wasm-pack build --target web
+npm install rumdl-wasm@latest --save-exact
+make build
 ```
 
 ## Contributing

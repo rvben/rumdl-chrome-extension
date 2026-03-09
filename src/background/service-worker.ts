@@ -40,7 +40,7 @@ let initError: string | null = null;
 let wasmVersion: string | null = null;
 
 // Import WASM module - use initSync to avoid dynamic import issues in service workers
-import { initSync, Linter, get_version, get_available_rules } from '../../wasm/rumdl_lib.js';
+import { initSync, Linter, get_version, get_available_rules } from 'rumdl-wasm';
 
 // Initialize the WASM module with proper error handling
 async function initializeWasm(): Promise<void> {
@@ -58,7 +58,7 @@ async function initializeWasm(): Promise<void> {
   initPromise = (async () => {
     try {
       // Fetch the WASM binary
-      const wasmPath = chrome.runtime.getURL('wasm/rumdl_lib_bg.wasm');
+      const wasmPath = chrome.runtime.getURL('dist/wasm/rumdl_lib_bg.wasm');
       const wasmResponse = await fetch(wasmPath);
 
       if (!wasmResponse.ok) {

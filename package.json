@@ -4,8 +4,7 @@
   "description": "Real-time Markdown linting with auto-fix for GitHub and GitLab",
   "type": "module",
   "scripts": {
-    "build": "npm run build:wasm && node scripts/build.js",
-    "build:wasm": "node scripts/copy-wasm.js",
+    "build": "node scripts/build.js",
     "watch": "node scripts/build.js && node scripts/build.js --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
@@ -14,7 +13,10 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "node tests/e2e/extension.test.mjs",
     "test:smoke": "node tests/smoke/selector-check.mjs",
-    "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ wasm/ -x '*.svg'"
+    "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ -x '*.svg'"
+  },
+  "dependencies": {
+    "rumdl-wasm": "0.1.43"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.36",

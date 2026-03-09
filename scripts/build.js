@@ -12,13 +12,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
 
 // Ensure dist directories exist
-const distDirs = ['dist/background', 'dist/content'];
+const distDirs = ['dist/background', 'dist/content', 'dist/wasm'];
 for (const dir of distDirs) {
   const fullPath = join(rootDir, dir);
   if (!existsSync(fullPath)) {
     mkdirSync(fullPath, { recursive: true });
   }
 }
+
+// Copy WASM binary from node_modules to dist/wasm
+const wasmSrc = join(rootDir, 'node_modules', 'rumdl-wasm', 'rumdl_lib_bg.wasm');
+const wasmDest = join(rootDir, 'dist', 'wasm', 'rumdl_lib_bg.wasm');
+copyFileSync(wasmSrc, wasmDest);
+console.log('Copied: rumdl_lib_bg.wasm from node_modules/rumdl-wasm');
 
 // Build content script (bundle all modules into one file)
 await esbuild.build({
