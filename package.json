@@ -16,7 +16,7 @@
     "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ -x '*.svg'"
   },
   "dependencies": {
-    "rumdl-wasm": "0.1.79"
+    "rumdl-wasm": "0.1.80"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.36",
