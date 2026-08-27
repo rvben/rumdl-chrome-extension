@@ -71,7 +71,7 @@ export async function loadConfig(): Promise<RumdlConfig> {
 export async function saveConfig(config: Partial<RumdlConfig>): Promise<RumdlConfig> {
   try {
     const currentConfig = await loadConfig();
-    const newConfig = { ...currentConfig, ...config };
+    const newConfig = validateAndMergeConfig({ ...currentConfig, ...config });
     await chrome.storage.sync.set({ [STORAGE_KEY]: newConfig });
     return newConfig;
   } catch (error) {

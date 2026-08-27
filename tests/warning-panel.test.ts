@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { resetChromeMocks } from './setup';
+import { mockChrome, resetChromeMocks } from './setup';
 import { WarningPanel } from '../src/content/warning-panel';
 import type { LintWarning, LinterConfig } from '../src/shared/types';
 
@@ -38,7 +38,8 @@ describe('WarningPanel', () => {
 
       const panelEl = document.querySelector('.rumdl-panel');
       expect(panelEl?.getAttribute('role')).toBe('dialog');
-      expect(panelEl?.getAttribute('aria-labelledby')).toBe('rumdl-panel-title');
+      const title = panelEl?.querySelector('.rumdl-panel-title');
+      expect(panelEl?.getAttribute('aria-labelledby')).toBe(title?.id);
       expect(panelEl?.getAttribute('tabindex')).toBe('-1');
     });
 
@@ -78,6 +79,58 @@ describe('WarningPanel', () => {
 
       expect(focusSpy).toHaveBeenCalled();
     });
+
+    it('makes the hidden panel inert and unavailable to assistive technology', async () => {
+      panel.show(textarea, config);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      panel.hide();
+
+      const panelEl = document.querySelector('.rumdl-panel') as HTMLElement;
+      expect(panelEl.hidden).toBe(true);
+      expect(panelEl.inert).toBe(true);
+      expect(panelEl.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('returns focus to the control that opened the panel', async () => {
+      const trigger = document.createElement('button');
+      document.body.appendChild(trigger);
+      const focusSpy = vi.spyOn(trigger, 'focus');
+      panel.show(textarea, config, trigger);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      panel.hide();
+
+      expect(focusSpy).toHaveBeenCalled();
+      trigger.remove();
+    });
+
+    it('reopens the existing panel as visible, active, and focused', async () => {
+      panel.show(textarea, config);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      panel.hide();
+
+      panel.show(textarea, config);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      const panelEl = document.querySelector('.rumdl-panel') as HTMLElement;
+      expect(panelEl.hidden).toBe(false);
+      expect(panelEl.inert).toBe(false);
+      expect(panelEl.getAttribute('aria-hidden')).toBe('false');
+      expect(document.activeElement).toBe(panelEl);
+    });
+
+    it('reports visibility changes from built-in controls', async () => {
+      const onVisibilityChange = vi.fn();
+      panel.setOnVisibilityChange(onVisibilityChange);
+      panel.show(textarea, config);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      const closeBtn = document.querySelector('.rumdl-btn-close') as HTMLButtonElement;
+      closeBtn.click();
+
+      expect(onVisibilityChange).toHaveBeenLastCalledWith(false);
+    });
   });
 
   describe('destroy', () => {
@@ -87,6 +140,17 @@ describe('WarningPanel', () => {
 
       const panelEl = document.querySelector('.rumdl-panel');
       expect(panelEl).toBeNull();
+    });
+
+    it('removes document-level drag listeners', () => {
+      const removeSpy = vi.spyOn(document, 'removeEventListener');
+      panel.show(textarea, config);
+
+      panel.destroy();
+
+      expect(removeSpy).toHaveBeenCalledWith('mousemove', expect.any(Function));
+      expect(removeSpy).toHaveBeenCalledWith('mouseup', expect.any(Function));
+      removeSpy.mockRestore();
     });
   });
 
@@ -172,6 +236,39 @@ describe('WarningPanel', () => {
       );
     });
 
+    it('uses native buttons for warning navigation', () => {
+      panel.show(textarea, config);
+      panel.updateWarnings(mockWarnings);
+
+      const jumpControls = document.querySelectorAll<HTMLButtonElement>('.rumdl-warning-jump');
+      expect(jumpControls).toHaveLength(3);
+      expect(jumpControls[0].type).toBe('button');
+      expect(jumpControls[0].getAttribute('aria-label')).toContain('line 1, column 1');
+    });
+
+    it('tracks the currently selected warning for assistive technology', () => {
+      panel.show(textarea, config);
+      panel.updateWarnings(mockWarnings);
+
+      const jumpControl = document.querySelector<HTMLButtonElement>('.rumdl-warning-jump');
+      jumpControl?.click();
+
+      expect(jumpControl?.getAttribute('aria-current')).toBe('true');
+    });
+
+    it('shows and clears a visible lint progress state', () => {
+      panel.show(textarea, config);
+      panel.setLinting();
+
+      const status = document.querySelector<HTMLElement>('.rumdl-panel-status');
+      expect(status?.hidden).toBe(false);
+      expect(status?.textContent).toContain('Checking Markdown');
+      expect(document.querySelector('.rumdl-panel')?.getAttribute('aria-busy')).toBe('true');
+
+      panel.updateWarnings(mockWarnings);
+      expect(status?.hidden).toBe(true);
+    });
+
     it('shows fix button for warnings with fixes', () => {
       const warningsWithFix: LintWarning[] = [
         {
@@ -250,6 +347,24 @@ describe('WarningPanel', () => {
     });
   });
 
+  describe('viewport placement', () => {
+    it('repositions while visible and removes listeners when hidden', async () => {
+      const addSpy = vi.spyOn(window, 'addEventListener');
+      const removeSpy = vi.spyOn(window, 'removeEventListener');
+      panel.show(textarea, config);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      expect(addSpy).toHaveBeenCalledWith('resize', expect.any(Function));
+      expect(addSpy).toHaveBeenCalledWith('scroll', expect.any(Function), true);
+
+      panel.hide();
+      expect(removeSpy).toHaveBeenCalledWith('resize', expect.any(Function));
+      expect(removeSpy).toHaveBeenCalledWith('scroll', expect.any(Function), true);
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    });
+  });
+
   describe('close button', () => {
     it('closes panel when close button clicked', () => {
       panel.show(textarea, config);
@@ -315,6 +430,58 @@ describe('WarningPanel', () => {
       const messageEl = document.querySelector('.rumdl-warning-message');
       expect(messageEl?.innerHTML).toContain('&lt;img');
       expect(messageEl?.innerHTML).not.toContain('<img');
+    });
+
+    it('does not allow warning text to inject attributes', () => {
+      const warning: LintWarning = {
+        rule_name: 'MD033',
+        message: 'Inline HTML found: <img src=x" autofocus onfocus="alert(1)">',
+        line: 1,
+        column: 1,
+        end_line: 1,
+        end_column: 10,
+        severity: 'warning',
+      };
+
+      panel.show(textarea, config);
+      panel.updateWarnings([warning]);
+
+      const warningElement = document.querySelector('.rumdl-warning');
+      expect(warningElement?.hasAttribute('autofocus')).toBe(false);
+      expect(warningElement?.hasAttribute('onfocus')).toBe(false);
+      expect(warningElement?.getAttribute('aria-label')).toContain(warning.message);
+    });
+  });
+
+  describe('concurrent fixes', () => {
+    it('does not overwrite input entered while fix all is running', async () => {
+      let respond: ((response: unknown) => void) | undefined;
+      mockChrome.runtime.sendMessage.mockImplementation(
+        (_message: unknown, callback: (response: unknown) => void) => {
+          respond = callback;
+        }
+      );
+
+      textarea.value = '# original';
+      panel.show(textarea, config);
+      panel.updateWarnings([{
+        rule_name: 'MD001',
+        message: 'Fixable warning',
+        line: 1,
+        column: 1,
+        end_line: 1,
+        end_column: 2,
+        severity: 'warning',
+        fix: { range: { start: 0, end: 1 }, replacement: '##' },
+      }]);
+
+      (document.querySelector('.rumdl-btn-fix') as HTMLButtonElement).click();
+      textarea.value = '# newer input';
+      respond?.({ type: 'FIX_RESULT', content: '## original' });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(textarea.value).toBe('# newer input');
     });
   });
 });

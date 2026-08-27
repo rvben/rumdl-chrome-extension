@@ -12,8 +12,8 @@ describe('toLinterConfig', () => {
       enabledRules: [],
       ruleConfigs: {},
       autoFormat: false,
-      showInlineMarkers: true,
       showGutterIcons: true,
+      reflow: false,
     };
 
     const result = toLinterConfig(config);
@@ -33,8 +33,8 @@ describe('toLinterConfig', () => {
       enabledRules: ['MD001', 'MD002'],
       ruleConfigs: {},
       autoFormat: false,
-      showInlineMarkers: true,
       showGutterIcons: true,
+      reflow: false,
     };
 
     const result = toLinterConfig(config);
@@ -56,8 +56,8 @@ describe('toLinterConfig', () => {
         MD024: { siblings_only: true },
       },
       autoFormat: false,
-      showInlineMarkers: true,
       showGutterIcons: true,
+      reflow: false,
     };
 
     const result = toLinterConfig(config);
@@ -78,8 +78,8 @@ describe('toLinterConfig', () => {
         enabledRules: [],
         ruleConfigs: {},
         autoFormat: false,
-        showInlineMarkers: true,
         showGutterIcons: true,
+        reflow: false,
       };
 
       const result = toLinterConfig(config);

@@ -61,10 +61,11 @@ describe('GutterMarkers', () => {
       expect(gutter.parentElement).toBe(parent);
     });
 
-    it('sets aria-hidden for accessibility', () => {
+    it('exposes a labelled group for keyboard-accessible markers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
 
-      expect(gutter.getAttribute('aria-hidden')).toBe('true');
+      expect(gutter.getAttribute('role')).toBe('group');
+      expect(gutter.getAttribute('aria-label')).toBe('rumdl lint markers');
     });
 
     it('sets parent position to relative if static', () => {
@@ -150,7 +151,7 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, mockWarnings);
 
-      const markers = gutter.querySelectorAll('div');
+      const markers = gutter.querySelectorAll('.rumdl-gutter-marker');
       expect(markers.length).toBe(3);
     });
 
@@ -170,7 +171,7 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, sameLineWarnings);
 
-      const markers = gutter.querySelectorAll('div');
+      const markers = gutter.querySelectorAll('.rumdl-gutter-marker');
       expect(markers.length).toBe(1);
     });
 
@@ -178,7 +179,7 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.backgroundColor).toBe('rgb(207, 34, 46)'); // #cf222e
     });
 
@@ -186,7 +187,7 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, [mockWarnings[1]]);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.backgroundColor).toBe('rgb(154, 103, 0)'); // #9a6700
     });
 
@@ -194,7 +195,7 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, [mockWarnings[2]]);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.backgroundColor).toBe('rgb(9, 105, 218)'); // #0969da
     });
 
@@ -207,25 +208,26 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, mixedWarnings);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.backgroundColor).toBe('rgb(207, 34, 46)'); // error color
     });
 
-    it('renders 8px circles', () => {
+    it('renders compact 10px marker controls', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
-      expect(marker.style.width).toBe('8px');
-      expect(marker.style.height).toBe('8px');
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
+      expect(marker.style.width).toBe('10px');
+      expect(marker.style.height).toBe('10px');
       expect(marker.style.borderRadius).toBe('50%');
+      expect(marker.tagName).toBe('BUTTON');
     });
 
     it('sets pointer-events to auto for interactivity', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, mockWarnings);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.pointerEvents).toBe('auto');
     });
 
@@ -233,7 +235,7 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, mockWarnings);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.cursor).toBe('pointer');
     });
 
@@ -241,18 +243,37 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
-      expect(marker.style.opacity).toBe('0.8');
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
+      expect(marker.style.opacity).toBe('0.86');
+    });
+
+    it('labels each marker with its line and lint messages', () => {
+      const gutter = gutterMarkers.createGutter(textarea);
+      gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
+
+      const marker = gutter.querySelector<HTMLButtonElement>('.rumdl-gutter-marker');
+      expect(marker?.getAttribute('aria-label')).toContain('Line 1: 1 lint issue');
+      expect(marker?.getAttribute('aria-label')).toContain('MD001: Error on line 1');
+    });
+
+    it('shows warning details when a marker receives keyboard focus', () => {
+      const gutter = gutterMarkers.createGutter(textarea);
+      gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
+
+      const marker = gutter.querySelector<HTMLButtonElement>('.rumdl-gutter-marker');
+      marker?.focus();
+
+      expect(document.querySelector('.rumdl-tooltip')?.textContent).toContain('Error on line 1');
     });
 
     it('clears existing markers before rendering', () => {
       const gutter = gutterMarkers.createGutter(textarea);
 
       gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
-      expect(gutter.querySelectorAll('div').length).toBe(1);
+      expect(gutter.querySelectorAll('.rumdl-gutter-marker').length).toBe(1);
 
       gutterMarkers.render(gutter, textarea, mockWarnings);
-      expect(gutter.querySelectorAll('div').length).toBe(3);
+      expect(gutter.querySelectorAll('.rumdl-gutter-marker').length).toBe(3);
     });
   });
 
@@ -312,7 +333,7 @@ describe('GutterMarkers', () => {
         },
       ]);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.backgroundColor).toBe('rgb(207, 34, 46)'); // error color takes priority
     });
 
@@ -340,7 +361,7 @@ describe('GutterMarkers', () => {
         },
       ]);
 
-      const marker = gutter.querySelector('div') as HTMLElement;
+      const marker = gutter.querySelector('.rumdl-gutter-marker') as HTMLElement;
       expect(marker.style.backgroundColor).toBe('rgb(154, 103, 0)'); // warning color
     });
   });

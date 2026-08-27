@@ -31,7 +31,8 @@ export class GutterMarkers {
 
     const container = document.createElement('div');
     container.className = 'rumdl-gutter';
-    container.setAttribute('aria-hidden', 'true');
+    container.setAttribute('role', 'group');
+    container.setAttribute('aria-label', 'rumdl lint markers');
 
     const parent = textarea.parentElement;
     if (!parent) {
@@ -52,7 +53,7 @@ export class GutterMarkers {
 
     // Position circles in left padding area, just before text starts
     const paddingLeft = parseFloat(computedStyle.paddingLeft) || 12;
-    const dotSize = 8;
+    const dotSize = 10;
     const gap = 3;
     const gutterLeft = Math.max(2, paddingLeft - dotSize - gap);
 
@@ -187,43 +188,64 @@ export class GutterMarkers {
       };
       const color = severityColors[severity.toLowerCase()] || severityColors.warning;
 
-      const marker = document.createElement('div');
+      const marker = document.createElement('button');
+      marker.type = 'button';
+      marker.className = 'rumdl-gutter-marker';
+      marker.setAttribute(
+        'aria-label',
+        `Line ${line}: ${lineWarningList.length} lint issue${lineWarningList.length === 1 ? '' : 's'}. ${lineWarningList.map(warning => `${warning.rule_name}: ${warning.message}`).join(' ')}`
+      );
       // 8px circle, vertically centered on the line
       marker.style.cssText = `
         position: absolute;
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.72);
         border-radius: 50%;
         background-color: ${color};
         pointer-events: auto;
         cursor: pointer;
         transition: box-shadow 0.15s ease, opacity 0.15s ease;
-        opacity: 0.8;
+        opacity: 0.86;
       `;
 
-      // Center the circle vertically on the line (8px dot = 4px offset)
+      // Center the circle vertically on the line.
       const lineY = linePositions[line - 1] ?? (line - 1) * state.lineHeight;
-      const top = lineY + (state.lineHeight / 2) - 4;
+      const top = lineY + (state.lineHeight / 2) - 5;
       marker.style.top = `${top}px`;
       marker.style.left = '0px';
 
-      // Hover effect: full opacity + soft glow
-      marker.addEventListener('mouseenter', () => {
+      const showMarkerTooltip = () => {
         marker.style.opacity = '1';
-        marker.style.boxShadow = `0 0 6px ${color}`;
+        marker.style.boxShadow = `0 0 0 2px ${color}33`;
         const rect = marker.getBoundingClientRect();
         showWarningsTooltip(lineWarningList, rect.right, rect.top, onFix);
-      });
-      marker.addEventListener('mouseleave', () => {
-        marker.style.opacity = '0.8';
+      };
+
+      const scheduleHide = () => {
+        marker.style.opacity = '0.86';
         marker.style.boxShadow = 'none';
-        // Delay hide to allow moving to tooltip
         setTimeout(() => {
           const tooltip = document.querySelector('.rumdl-tooltip');
-          if (!tooltip?.matches(':hover')) {
+          if (!marker.matches(':hover') && !marker.matches(':focus') && !tooltip?.contains(document.activeElement)) {
             hideTooltip();
           }
         }, 100);
+      };
+
+      marker.addEventListener('mouseenter', showMarkerTooltip);
+      marker.addEventListener('focus', showMarkerTooltip);
+      marker.addEventListener('click', showMarkerTooltip);
+      marker.addEventListener('mouseleave', () => {
+        scheduleHide();
+      });
+      marker.addEventListener('blur', scheduleHide);
+      marker.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          hideTooltip();
+          textarea.focus();
+        }
       });
 
       gutter.appendChild(marker);

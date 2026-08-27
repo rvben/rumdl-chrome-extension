@@ -1,128 +1,130 @@
-/* rumdl Chrome Extension - GitHub Native Style */
+/* rumdl injected UI — native GitHub/GitLab surfaces with a single rumdl accent. */
 
-/* ============================================
-   CSS Custom Properties - GitHub Primer Colors
-   ============================================ */
-:root {
-  /* GitHub's actual color tokens */
-  --color-fg-default: #1f2328;
-  --color-fg-muted: #656d76;
-  --color-fg-subtle: #6e7781;
-  --color-canvas-default: #ffffff;
-  --color-canvas-subtle: #f6f8fa;
-  --color-border-default: #d0d7de;
-  --color-border-muted: #d8dee4;
-  --color-neutral-muted: rgba(175, 184, 193, 0.2);
-
-  /* Semantic colors from GitHub */
-  --color-danger-fg: #cf222e;
-  --color-danger-emphasis: #cf222e;
-  --color-attention-fg: #9a6700;
-  --color-attention-emphasis: #9a6700;
-  --color-accent-fg: #0969da;
-  --color-success-fg: #1a7f37;
-  --color-success-emphasis: #1f883d;
+:where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip) {
+  --rumdl-fg: #1f2328;
+  --rumdl-fg-muted: #59636e;
+  --rumdl-fg-subtle: #59636e;
+  --rumdl-canvas: #ffffff;
+  --rumdl-canvas-subtle: #f6f8fa;
+  --rumdl-border: #d0d7de;
+  --rumdl-border-muted: #d8dee4;
+  --rumdl-neutral-hover: rgba(175, 184, 193, 0.24);
+  --rumdl-danger: #cf222e;
+  --rumdl-attention: #7d4e00;
+  --rumdl-accent: #8250df;
+  --rumdl-accent-strong: #6639ba;
+  --rumdl-success: #1a7f37;
+  --rumdl-success-strong: #1f883d;
+  --rumdl-focus: #0969da;
+  box-sizing: border-box;
 }
 
-/* GitLab light mode adjustments */
-[data-theme="light"],
-.gl-dark {
-  /* GitLab uses different variable names, we provide consistent fallbacks */
-}
-
-/* Dark mode */
-[data-color-mode="dark"],
-[data-dark-theme="dark"],
-[data-theme="dark"],
-.gl-dark,
-.dark {
-  --color-fg-default: #e6edf3;
-  --color-fg-muted: #8b949e;
-  --color-fg-subtle: #6e7681;
-  --color-canvas-default: #0d1117;
-  --color-canvas-subtle: #161b22;
-  --color-border-default: #30363d;
-  --color-border-muted: #21262d;
-  --color-neutral-muted: rgba(110, 118, 129, 0.4);
-
-  --color-danger-fg: #f85149;
-  --color-danger-emphasis: #da3633;
-  --color-attention-fg: #d29922;
-  --color-attention-emphasis: #bb8009;
-  --color-accent-fg: #58a6ff;
-  --color-success-fg: #3fb950;
-  --color-success-emphasis: #238636;
+:where([data-color-mode="dark"], [data-dark-theme="dark"], [data-theme="dark"], .gl-dark, .dark)
+  :where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip) {
+  --rumdl-fg: #e6edf3;
+  --rumdl-fg-muted: #a8b3bf;
+  --rumdl-fg-subtle: #9ba7b4;
+  --rumdl-canvas: #0d1117;
+  --rumdl-canvas-subtle: #161b22;
+  --rumdl-border: #30363d;
+  --rumdl-border-muted: #21262d;
+  --rumdl-neutral-hover: rgba(110, 118, 129, 0.32);
+  --rumdl-danger: #ff7b72;
+  --rumdl-attention: #e3b341;
+  --rumdl-accent: #a371f7;
+  --rumdl-accent-strong: #bc8cff;
+  --rumdl-success: #56d364;
+  --rumdl-success-strong: #2ea043;
+  --rumdl-focus: #58a6ff;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-color-mode="light"]) {
-    --color-fg-default: #e6edf3;
-    --color-fg-muted: #8b949e;
-    --color-fg-subtle: #6e7681;
-    --color-canvas-default: #0d1117;
-    --color-canvas-subtle: #161b22;
-    --color-border-default: #30363d;
-    --color-border-muted: #21262d;
-    --color-neutral-muted: rgba(110, 118, 129, 0.4);
-
-    --color-danger-fg: #f85149;
-    --color-danger-emphasis: #da3633;
-    --color-attention-fg: #d29922;
-    --color-attention-emphasis: #bb8009;
-    --color-accent-fg: #58a6ff;
-    --color-success-fg: #3fb950;
-    --color-success-emphasis: #238636;
+  :where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip) {
+    --rumdl-fg: #e6edf3;
+    --rumdl-fg-muted: #a8b3bf;
+    --rumdl-fg-subtle: #9ba7b4;
+    --rumdl-canvas: #0d1117;
+    --rumdl-canvas-subtle: #161b22;
+    --rumdl-border: #30363d;
+    --rumdl-border-muted: #21262d;
+    --rumdl-neutral-hover: rgba(110, 118, 129, 0.32);
+    --rumdl-danger: #ff7b72;
+    --rumdl-attention: #e3b341;
+    --rumdl-accent: #a371f7;
+    --rumdl-accent-strong: #bc8cff;
+    --rumdl-success: #56d364;
+    --rumdl-success-strong: #2ea043;
+    --rumdl-focus: #58a6ff;
   }
 }
 
-/* ============================================
-   Warning Panel - GitHub Native Style
-   ============================================ */
 .rumdl-panel {
-  width: 320px;
-  background: var(--color-canvas-default);
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
-  overflow: hidden;
+  position: fixed;
   z-index: 99999;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
   display: flex;
   flex-direction: column;
+  width: min(360px, calc(100vw - 24px));
+  min-width: 0;
+  overflow: hidden;
+  color: var(--rumdl-fg);
+  background: var(--rumdl-canvas);
+  border: 1px solid var(--rumdl-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(31, 35, 40, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 160ms;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   font-size: 14px;
+  line-height: 1.4;
 }
+
+.rumdl-panel[hidden] { display: none !important; }
 
 .rumdl-panel.visible {
   opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
   transform: translateY(0);
+  transition-delay: 0s;
 }
 
-/* Panel Header */
 .rumdl-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--color-canvas-subtle);
-  border-bottom: 1px solid var(--color-border-muted);
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 10px 8px 12px;
+  background: var(--rumdl-canvas-subtle);
+  border-bottom: 1px solid var(--rumdl-border-muted);
+  user-select: none;
+}
+
+.rumdl-panel-title,
+.rumdl-panel-actions,
+.rumdl-shortcuts,
+.rumdl-shortcuts span,
+.rumdl-warning-header,
+.rumdl-status-btn {
+  display: flex;
+  align-items: center;
 }
 
 .rumdl-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  min-width: 0;
+  gap: 7px;
+  color: var(--rumdl-fg);
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-fg-default);
 }
 
 .rumdl-logo {
+  color: var(--rumdl-accent);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-weight: 600;
-  color: var(--color-fg-muted);
+  font-weight: 700;
 }
 
 .rumdl-count {
@@ -132,307 +134,293 @@
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 10px;
-  background: var(--color-attention-emphasis);
-  color: #fff;
+  color: #ffffff;
+  background: var(--rumdl-attention);
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
-.rumdl-count.success {
-  background: var(--color-success-emphasis);
-}
+.rumdl-count.success { background: var(--rumdl-success-strong); }
 
-.rumdl-issues-label {
-  color: var(--color-fg-muted);
-  font-weight: 400;
-}
+.rumdl-issues-label,
+.rumdl-lint-time { color: var(--rumdl-fg-muted); font-weight: 400; }
+.rumdl-lint-time { font-size: 11px; font-variant-numeric: tabular-nums; }
+.rumdl-panel-actions { flex-shrink: 0; gap: 4px; }
 
-.rumdl-lint-time {
+.rumdl-panel-status {
+  padding: 7px 12px;
+  color: var(--rumdl-fg-muted);
+  background: var(--rumdl-canvas-subtle);
+  border-bottom: 1px solid var(--rumdl-border-muted);
   font-size: 12px;
-  color: var(--color-fg-subtle);
 }
 
-.rumdl-panel-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.rumdl-panel-status[hidden] { display: none; }
+
+.rumdl-panel-status[data-tone="progress"]::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  background: var(--rumdl-accent);
+  border-radius: 50%;
+  animation: rumdl-pulse 1s ease-in-out infinite alternate;
 }
 
-/* Panel Content */
+.rumdl-panel-status[data-tone="success"] { color: var(--rumdl-success); }
+.rumdl-panel-status[data-tone="warning"] { color: var(--rumdl-attention); }
+.rumdl-panel-status[data-tone="error"] { color: var(--rumdl-danger); }
+
 .rumdl-panel-content {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
   max-height: 360px;
+  overflow-y: auto;
+  scrollbar-color: var(--rumdl-border) transparent;
+  scrollbar-width: thin;
 }
 
-/* Panel Footer */
 .rumdl-panel-footer {
   padding: 8px 12px;
-  background: var(--color-canvas-subtle);
-  border-top: 1px solid var(--color-border-muted);
+  background: var(--rumdl-canvas-subtle);
+  border-top: 1px solid var(--rumdl-border-muted);
 }
 
 .rumdl-shortcuts {
-  display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--color-fg-muted);
+  gap: 6px 12px;
+  color: var(--rumdl-fg-muted);
+  font-size: 11px;
 }
 
-.rumdl-shortcuts span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+.rumdl-shortcuts span { gap: 4px; }
 
 .rumdl-shortcuts kbd {
   display: inline-block;
+  min-width: 20px;
   padding: 2px 5px;
-  font-size: 11px;
+  color: var(--rumdl-fg-muted);
+  background: var(--rumdl-canvas);
+  border: 1px solid var(--rumdl-border);
+  border-radius: 5px;
+  box-shadow: inset 0 -1px 0 var(--rumdl-border);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  line-height: 1;
-  color: var(--color-fg-muted);
-  background: var(--color-canvas-default);
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  box-shadow: inset 0 -1px 0 var(--color-border-default);
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
 }
 
-/* ============================================
-   Buttons - GitHub Style
-   ============================================ */
 .rumdl-btn {
-  padding: 3px 8px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 20px;
-  color: var(--color-fg-default);
-  background-color: var(--color-canvas-subtle);
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  transition: 0.1s ease;
+  min-height: 28px;
+  padding: 3px 8px;
+  color: var(--rumdl-fg);
+  background: var(--rumdl-canvas-subtle);
+  border: 1px solid var(--rumdl-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  transition: background-color 100ms ease, border-color 100ms ease, color 100ms ease;
 }
 
-.rumdl-btn:hover:not(:disabled) {
-  background-color: var(--color-neutral-muted);
-}
-
-.rumdl-btn:disabled {
-  color: var(--color-fg-subtle);
-  cursor: not-allowed;
-}
+.rumdl-btn:hover:not(:disabled) { background: var(--rumdl-neutral-hover); }
+.rumdl-btn:active:not(:disabled) { background: var(--rumdl-border-muted); }
+.rumdl-btn:disabled { cursor: not-allowed; opacity: 0.6; }
 
 .rumdl-btn-fix {
   color: #ffffff;
-  background-color: var(--color-success-emphasis);
-  border-color: var(--color-success-emphasis);
+  background: var(--rumdl-success-strong);
+  border-color: var(--rumdl-success-strong);
 }
 
-.rumdl-btn-fix:hover:not(:disabled) {
-  background-color: var(--color-success-fg);
-}
-
-.rumdl-btn-fix:disabled {
-  color: rgba(255, 255, 255, 0.6);
-  background-color: var(--color-success-emphasis);
-  opacity: 0.6;
-}
+.rumdl-btn-fix:hover:not(:disabled) { background: var(--rumdl-success); }
 
 .rumdl-btn-close {
+  width: 30px;
   padding: 4px;
+  color: var(--rumdl-fg-muted);
   background: transparent;
-  border: none;
-  color: var(--color-fg-muted);
-  border-radius: 6px;
+  border-color: transparent;
 }
 
-.rumdl-btn-close:hover {
-  background: var(--color-neutral-muted);
-  color: var(--color-fg-default);
-}
-
-/* ============================================
-   Warning Items
-   ============================================ */
-.rumdl-section {
-  border-bottom: 1px solid var(--color-border-muted);
-}
-
-.rumdl-section:last-child {
-  border-bottom: none;
-}
+.rumdl-btn-close:hover:not(:disabled) { color: var(--rumdl-fg); background: var(--rumdl-neutral-hover); }
+.rumdl-section { border-bottom: 1px solid var(--rumdl-border-muted); }
+.rumdl-section:last-child { border-bottom: 0; }
 
 .rumdl-section-title {
-  padding: 8px 12px 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-fg-muted);
+  padding: 9px 12px 4px;
+  color: var(--rumdl-fg-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
-.rumdl-section-title.error {
-  color: var(--color-danger-fg);
-}
-
-.rumdl-section-title.warning {
-  color: var(--color-attention-fg);
-}
-
-.rumdl-section-title.info {
-  color: var(--color-accent-fg);
-}
+.rumdl-section-title.error,
+.rumdl-warning-rule.error { color: var(--rumdl-danger); }
+.rumdl-section-title.warning,
+.rumdl-warning-rule.warning { color: var(--rumdl-attention); }
+.rumdl-section-title.info,
+.rumdl-warning-rule.info { color: var(--rumdl-accent); }
 
 .rumdl-warning {
-  padding: 8px 12px;
-  cursor: pointer;
-  border-left: 2px solid transparent;
-  transition: background 0.1s ease;
-}
-
-.rumdl-warning:hover {
-  background: var(--color-canvas-subtle);
-  border-left-color: var(--color-accent-fg);
-}
-
-.rumdl-warning-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 2px;
+  gap: 8px;
+  padding: 0 10px 0 11px;
+  border-left: 1px solid transparent;
+  transition: background-color 100ms ease, border-color 100ms ease;
 }
 
-.rumdl-warning-rule {
-  font-size: 12px;
-  font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+.rumdl-warning:hover,
+.rumdl-warning:focus-within { background: var(--rumdl-canvas-subtle); border-left-color: var(--rumdl-accent); }
+
+.rumdl-warning-jump {
+  min-width: 0;
+  padding: 9px 1px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
-.rumdl-warning-rule.error {
-  color: var(--color-danger-fg);
-}
+.rumdl-warning-jump[aria-current="true"] .rumdl-warning-message { color: var(--rumdl-fg); }
+.rumdl-warning-header { justify-content: space-between; gap: 8px; margin-bottom: 3px; }
 
-.rumdl-warning-rule.warning {
-  color: var(--color-attention-fg);
-}
-
-.rumdl-warning-rule.info {
-  color: var(--color-accent-fg);
-}
-
+.rumdl-warning-rule,
 .rumdl-warning-location {
-  font-size: 12px;
-  color: var(--color-fg-subtle);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
+
+.rumdl-warning-rule { font-weight: 700; }
+.rumdl-warning-location { flex-shrink: 0; color: var(--rumdl-fg-subtle); }
 
 .rumdl-warning-message {
+  display: block;
+  color: var(--rumdl-fg-muted);
   font-size: 12px;
-  color: var(--color-fg-muted);
-  line-height: 1.4;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.rumdl-btn-fix-one {
-  margin-top: 6px;
-  padding: 2px 6px;
-  font-size: 11px;
-}
+.rumdl-btn-fix-one { min-height: 26px; padding: 2px 7px; font-size: 11px; }
 
-/* ============================================
-   Empty State
-   ============================================ */
 .rumdl-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  color: var(--color-fg-muted);
+  color: var(--rumdl-fg-muted);
+  text-align: center;
 }
 
-.rumdl-empty svg {
-  width: 32px;
-  height: 32px;
-  margin-bottom: 8px;
-  color: var(--color-success-fg);
-}
+.rumdl-empty svg { width: 32px; height: 32px; margin-bottom: 8px; color: var(--rumdl-success); }
+.rumdl-empty p { margin: 0; color: var(--rumdl-fg); font-size: 14px; font-weight: 600; }
+.rumdl-empty-subtitle { margin-top: 4px; color: var(--rumdl-fg-muted); font-size: 12px; }
 
-.rumdl-empty p {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-fg-default);
-}
-
-.rumdl-empty .rumdl-empty-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--color-fg-muted);
-}
-
-/* ============================================
-   Status Button (Toolbar)
-   ============================================ */
 .rumdl-status-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  gap: 5px;
+  min-height: 30px;
   margin: 0 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-fg-muted, #656d76);
-  background: var(--color-canvas-subtle, rgba(255,255,255,0.1));
-  border: 1px solid var(--color-border-default, rgba(255,255,255,0.2));
+  padding: 3px 8px;
+  color: var(--rumdl-fg-muted);
+  background: var(--rumdl-canvas-subtle);
+  border: 1px solid var(--rumdl-border);
   border-radius: 6px;
   cursor: pointer;
-  transition: 0.1s ease;
-}
-
-.rumdl-status-btn:hover {
-  background: var(--color-neutral-muted);
-}
-
-.rumdl-status-btn.has-warnings {
-  color: var(--color-attention-fg);
-}
-
-.rumdl-status-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.rumdl-status-count {
-  font-weight: 600;
-}
-
-.rumdl-status-time {
-  font-size: 11px;
-  color: var(--color-fg-subtle);
-}
-
-/* ============================================
-   Tooltip - GitHub Style
-   ============================================ */
-.rumdl-tooltip {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   font-size: 12px;
-  background: var(--color-canvas-default);
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
-  padding: 8px 12px;
-  max-width: 300px;
+  font-weight: 600;
+  line-height: 20px;
+  transition: background-color 100ms ease, border-color 100ms ease, color 100ms ease;
 }
 
-/* ============================================
-   Gutter Markers - Line indicators
-   Dots use inline styles for Shadow DOM compat.
-   ============================================ */
-.rumdl-gutter {
-  pointer-events: none;
+.rumdl-status-btn:hover { background: var(--rumdl-neutral-hover); }
+.rumdl-status-btn.has-warnings { color: var(--rumdl-attention); }
+.rumdl-status-btn.has-error { color: var(--rumdl-danger); }
+.rumdl-status-btn.is-linting { color: var(--rumdl-accent); }
+.rumdl-status-btn svg { width: 16px; height: 16px; }
+.rumdl-status-count { font-variant-numeric: tabular-nums; font-weight: 700; }
+.rumdl-status-time { color: var(--rumdl-fg-subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.rumdl-tooltip {
+  position: fixed;
+  z-index: 100000;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 9px 11px;
+  color: var(--rumdl-fg);
+  background: var(--rumdl-canvas);
+  border: 1px solid var(--rumdl-border);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgba(31, 35, 40, 0.18);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rumdl-tooltip-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.rumdl-tooltip-rule { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; font-weight: 700; }
+.rumdl-tooltip-rule.error { color: var(--rumdl-danger); }
+.rumdl-tooltip-rule.warning { color: var(--rumdl-attention); }
+.rumdl-tooltip-rule.info { color: var(--rumdl-accent); }
+.rumdl-tooltip-message { color: var(--rumdl-fg); overflow-wrap: anywhere; }
+.rumdl-tooltip-hint { margin-top: 7px; padding-top: 7px; color: var(--rumdl-fg-muted); border-top: 1px solid var(--rumdl-border-muted); font-size: 11px; }
+.rumdl-tooltip-warning { margin-bottom: 7px; padding-bottom: 7px; border-bottom: 1px solid var(--rumdl-border-muted); }
+.rumdl-tooltip-warning:last-child { margin: 0; padding: 0; border-bottom: 0; }
+.rumdl-tooltip-fix { float: right; margin-left: 8px; }
+.rumdl-gutter { pointer-events: none; }
+
+.rumdl-gutter-marker:focus-visible,
+.rumdl-warning-jump:focus-visible,
+.rumdl-btn:focus-visible,
+.rumdl-status-btn:focus-visible,
+.rumdl-tooltip-fix:focus-visible,
+.rumdl-error-close:focus-visible {
+  outline: 2px solid var(--rumdl-focus, #0969da);
+  outline-offset: 2px;
+}
+
+@keyframes rumdl-pulse {
+  from { opacity: 0.45; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 420px) {
+  .rumdl-panel-footer { display: none; }
+  .rumdl-panel-header { padding-left: 10px; }
+  .rumdl-lint-time { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rumdl-panel,
+  .rumdl-btn,
+  .rumdl-warning,
+  .rumdl-status-btn,
+  .rumdl-tooltip,
+  .rumdl-gutter-marker,
+  .rumdl-error-close {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .rumdl-panel-status[data-tone="progress"]::before { animation: none; }
 }

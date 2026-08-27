@@ -3,145 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>rumdl - Markdown Linter</title>
+  <title>rumdl — Markdown Linter</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup">
     <header class="header">
-      <div class="logo">
-        <svg viewBox="0 0 32 32" width="24" height="24">
-          <!-- Document shape -->
+      <div class="logo" aria-label="rumdl Markdown Linter">
+        <svg class="logo-mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
           <path d="M8 6h12l4 4v16c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2z"
-                fill="none" stroke="#1e1e2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- Document fold -->
-          <path d="M20 6v4h4" fill="none" stroke="#1e1e2e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- Green checkmark -->
-          <circle cx="22" cy="22" r="6" fill="#22c55e"/>
+                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 6v4h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle class="logo-check" cx="22" cy="22" r="6"/>
           <path d="M19.5 22l1.5 1.5l3-3" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span class="logo-text">rumdl</span>
       </div>
-      <span class="version" id="version">v?.?.?</span>
+      <span class="version" id="version" hidden></span>
     </header>
 
-    <main class="content">
-      <!-- Enable/Disable Toggle -->
-      <section class="section">
-        <div class="toggle-row">
-          <label for="enabled" class="toggle-label">
-            <span class="toggle-title">Enable rumdl</span>
-            <span class="toggle-desc">Lint markdown on GitHub and GitLab</span>
-          </label>
-          <input type="checkbox" id="enabled" class="toggle">
-        </div>
-      </section>
-
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab active" data-tab="general">General</button>
-        <button class="tab" data-tab="rules">Rules</button>
-        <button class="tab" data-tab="advanced">Advanced</button>
+    <main class="content" id="mainContent" aria-busy="true">
+      <div class="state-block startup-state" id="startupState" role="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="startupMessage">Loading settings…</span>
+        <button class="btn btn-secondary btn-small" id="retryLoadBtn" type="button" hidden>Try again</button>
       </div>
 
-      <!-- General Tab -->
-      <section class="tab-content active" id="tab-general">
-        <div class="form-group">
-          <label for="flavor" class="label">Markdown Flavor</label>
-          <select id="flavor" class="select">
-            <option value="standard">Standard</option>
-            <option value="mkdocs">MkDocs</option>
-            <option value="mdx">MDX</option>
-            <option value="quarto">Quarto</option>
-            <option value="obsidian">Obsidian</option>
-          </select>
-          <span class="hint">Choose the markdown variant you're using</span>
-        </div>
-
-        <div class="form-group">
-          <label for="lineLength" class="label">Line Length</label>
-          <input type="number" id="lineLength" class="input" min="40" max="500" step="1">
-          <span class="hint">Maximum characters per line (0 = unlimited)</span>
-        </div>
-
-        <div class="form-group">
-          <label class="label">Formatting Options</label>
-          <div class="checkbox-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="reflow">
-              <span>Enable text reflow (wrap long lines)</span>
+      <div id="settingsShell" hidden>
+        <section class="section" aria-labelledby="extensionStatusTitle">
+          <div class="toggle-row">
+            <label for="enabled" class="toggle-label">
+              <span class="toggle-title" id="extensionStatusTitle">Enable rumdl</span>
+              <span class="toggle-desc">Lint Markdown on GitHub and GitLab</span>
             </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="autoFormat">
-              <span>Auto-format pasted markdown</span>
-            </label>
+            <input type="checkbox" id="enabled" class="toggle">
           </div>
+        </section>
+
+        <div class="tabs" role="tablist" aria-label="Settings sections">
+          <button class="tab active" id="tab-button-general" type="button" role="tab"
+                  aria-selected="true" aria-controls="tab-general" tabindex="0" data-tab="general">General</button>
+          <button class="tab" id="tab-button-rules" type="button" role="tab"
+                  aria-selected="false" aria-controls="tab-rules" tabindex="-1" data-tab="rules">Rules</button>
+          <button class="tab" id="tab-button-advanced" type="button" role="tab"
+                  aria-selected="false" aria-controls="tab-advanced" tabindex="-1" data-tab="advanced">Advanced</button>
         </div>
 
-        <div class="form-group">
-          <label class="label">Display Options</label>
-          <div class="checkbox-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="showGutterIcons">
-              <span>Show gutter icons</span>
-            </label>
+        <section class="tab-content active" id="tab-general" role="tabpanel"
+                 aria-labelledby="tab-button-general">
+          <div class="form-group">
+            <label for="flavor" class="label">Markdown flavor</label>
+            <select id="flavor" class="select">
+              <option value="standard">Standard</option>
+              <option value="mkdocs">MkDocs</option>
+              <option value="mdx">MDX</option>
+              <option value="quarto">Quarto</option>
+              <option value="obsidian">Obsidian</option>
+            </select>
+            <span class="hint">Choose the Markdown variant used by your project.</span>
           </div>
-        </div>
-      </section>
 
-      <!-- Rules Tab -->
-      <section class="tab-content" id="tab-rules">
-        <div class="form-group">
-          <label for="disabledRules" class="label">Disabled Rules</label>
-          <input type="text" id="disabledRules" class="input" placeholder="MD041, MD013, ...">
-          <span class="hint">Comma-separated rule names to disable</span>
-        </div>
-
-        <div class="form-group">
-          <label for="enabledRules" class="label">Enabled Rules Only</label>
-          <input type="text" id="enabledRules" class="input" placeholder="">
-          <span class="hint">If set, only these rules will run (leave empty for all)</span>
-        </div>
-
-        <div class="rules-list" id="rulesList">
-          <div class="loading">Loading rules...</div>
-        </div>
-      </section>
-
-      <!-- Advanced Tab -->
-      <section class="tab-content" id="tab-advanced">
-        <div class="form-group">
-          <label class="label">Import/Export Settings</label>
-          <div class="btn-group">
-            <button id="exportBtn" class="btn btn-secondary">Export</button>
-            <button id="importBtn" class="btn btn-secondary">Import</button>
+          <div class="form-group">
+            <label for="lineLength" class="label">Line length</label>
+            <input type="number" id="lineLength" class="input" min="40" max="500" step="1"
+                   inputmode="numeric" aria-describedby="lineLengthHint lineLengthError">
+            <span class="hint" id="lineLengthHint">Maximum characters per line, from 40 to 500.</span>
+            <span class="field-error" id="lineLengthError" aria-live="polite"></span>
           </div>
-          <input type="file" id="importFile" accept=".json" style="display: none;">
-        </div>
 
-        <div class="form-group">
-          <label class="label">Keyboard Shortcuts</label>
-          <div class="shortcuts-list">
-            <div class="shortcut"><kbd>Ctrl+Shift+F</kbd> Format document</div>
-            <div class="shortcut"><kbd>Ctrl+Shift+L</kbd> Toggle panel</div>
-            <div class="shortcut"><kbd>Ctrl+.</kbd> Quick fix at cursor</div>
-            <div class="shortcut"><kbd>Ctrl+Alt+]</kbd> Next warning</div>
-            <div class="shortcut"><kbd>Ctrl+Alt+[</kbd> Previous warning</div>
+          <fieldset class="form-group fieldset-reset">
+            <legend class="label">Formatting</legend>
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="reflow">
+                <span>Reflow text that exceeds the line length</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="autoFormat">
+                <span>Format pasted Markdown automatically</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="form-group fieldset-reset">
+            <legend class="label">Editor display</legend>
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="showGutterIcons">
+                <span>Show warning markers beside the editor</span>
+              </label>
+            </div>
+          </fieldset>
+        </section>
+
+        <section class="tab-content" id="tab-rules" role="tabpanel"
+                 aria-labelledby="tab-button-rules" hidden>
+          <div class="rules-toolbar">
+            <label class="visually-hidden" for="ruleSearch">Search rules</label>
+            <input type="search" id="ruleSearch" class="input search-input"
+                   placeholder="Search rules" autocomplete="off" spellcheck="false">
+            <p class="rules-summary" id="rulesMode"></p>
           </div>
-        </div>
 
-        <div class="form-group">
-          <button id="resetBtn" class="btn btn-danger">Reset to Defaults</button>
-        </div>
-      </section>
+          <div class="rules-list" id="rulesList" aria-busy="true" aria-describedby="rulesResults">
+            <div class="state-block compact" role="status">
+              <span class="spinner" aria-hidden="true"></span>
+              <span>Loading rules…</span>
+            </div>
+          </div>
+          <p class="visually-hidden" id="rulesResults" aria-live="polite"></p>
+
+          <details class="expert-controls" id="expertRuleControls">
+            <summary>Expert rule controls</summary>
+            <div class="expert-content">
+              <p class="expert-intro">Use comma-separated rule IDs. An enabled-only list becomes the allowlist; disabled rules still take precedence.</p>
+              <div class="form-group">
+                <label for="enabledRules" class="label">Enabled rules only</label>
+                <input type="text" id="enabledRules" class="input" placeholder="MD001, MD013"
+                       autocomplete="off" spellcheck="false">
+                <span class="hint">Leave empty to enable every rule except disabled ones.</span>
+              </div>
+              <div class="form-group">
+                <label for="disabledRules" class="label">Disabled rules</label>
+                <input type="text" id="disabledRules" class="input" placeholder="MD041"
+                       autocomplete="off" spellcheck="false">
+                <span class="hint">These rules remain off, including rules in the allowlist.</span>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="tab-content" id="tab-advanced" role="tabpanel"
+                 aria-labelledby="tab-button-advanced" hidden>
+          <div class="form-group">
+            <span class="label">Import or export settings</span>
+            <div class="btn-group">
+              <button id="exportBtn" class="btn btn-secondary" type="button">Export settings</button>
+              <button id="importBtn" class="btn btn-secondary" type="button">Import settings</button>
+            </div>
+            <input type="file" id="importFile" accept="application/json,.json" hidden>
+          </div>
+
+          <div class="form-group">
+            <span class="label">Keyboard shortcuts</span>
+            <div class="shortcuts-list">
+              <div class="shortcut"><kbd data-shortcut="mod,Shift,F"></kbd><span>Format document</span></div>
+              <div class="shortcut"><kbd data-shortcut="mod,Shift,L"></kbd><span>Toggle warning panel</span></div>
+              <div class="shortcut"><kbd data-shortcut="mod,."></kbd><span>Quick fix at cursor</span></div>
+              <div class="shortcut"><kbd data-shortcut="mod,alt,]"></kbd><span>Next warning</span></div>
+              <div class="shortcut"><kbd data-shortcut="mod,alt,["></kbd><span>Previous warning</span></div>
+            </div>
+          </div>
+
+          <div class="danger-zone">
+            <div>
+              <span class="label">Reset settings</span>
+              <p class="hint">Restore every option and rule to its default.</p>
+            </div>
+            <button id="resetBtn" class="btn btn-danger" type="button">Reset</button>
+          </div>
+        </section>
+      </div>
     </main>
 
     <footer class="footer">
-      <a href="https://github.com/rvben/rumdl" target="_blank" rel="noopener">GitHub</a>
-      <span class="sep">|</span>
-      <a href="https://github.com/rvben/rumdl/blob/main/docs/RULES.md" target="_blank" rel="noopener">Rules</a>
-      <span class="sep">|</span>
-      <span id="ruleCount">0 rules</span>
+      <div class="footer-meta">
+        <nav aria-label="rumdl resources">
+          <a href="https://github.com/rvben/rumdl" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/rvben/rumdl/blob/main/docs/RULES.md" target="_blank" rel="noopener">Rule guide</a>
+        </nav>
+        <span id="ruleCount">Loading rules</span>
+      </div>
+      <div class="save-row">
+        <span class="save-status" id="saveStatus" role="status" aria-live="polite">Settings load automatically</span>
+        <button class="link-button" id="retrySaveBtn" type="button" hidden>Retry</button>
+      </div>
     </footer>
   </div>
 

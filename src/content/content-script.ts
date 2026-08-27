@@ -11,6 +11,7 @@ import { showErrorNotification } from './error-notification.js';
 import { toLinterConfig } from '../shared/config-utils.js';
 import { validateAndMergeConfig } from '../shared/storage.js';
 import { getCurrentSite } from '../shared/site-utils.js';
+import { setTextareaValue, setTextareaValueIfUnchanged } from './textarea-utils.js';
 import type { LintWarning, RumdlConfig } from '../shared/types.js';
 
 // Debug mode - set to false for production
@@ -36,18 +37,20 @@ let storageListener: ((changes: { [key: string]: chrome.storage.StorageChange },
 // Map of textarea to its state
 interface EditorState {
   panel: WarningPanel;
-  gutter: HTMLElement;
+  gutter: HTMLElement | null;
   debounceTimer: ReturnType<typeof setTimeout> | null;
-  lastContent: string;
-  lastContentHash: string;
+  lastContent: string | null;
   warnings: LintWarning[];
   button: HTMLElement | null;
   currentWarningIndex: number;
   lintTime: number;
   isPanelVisible: boolean;
+  inputHandler: () => void;
+  pasteHandler: (event: ClipboardEvent) => void;
 }
 
 const editorStates = new Map<HTMLTextAreaElement, EditorState>();
+let lintingActive = false;
 
 // Debounce delay for linting (ms)
 const LINT_DEBOUNCE_MS = 150;
@@ -179,45 +182,41 @@ async function init(): Promise<void> {
     return;
   }
 
-  if (!config.enabled) {
-    log('Extension is disabled');
-    return;
-  }
-
-  // Start observing for editors
-  editorManager.observe((textarea, event) => {
-    if (event === 'added') {
-      setupEditor(textarea);
-    } else {
-      cleanupEditor(textarea);
-    }
-  });
-
-  // Handle SPA navigation for different sites
-  // GitHub uses Turbo and pjax
-  document.addEventListener('turbo:load', handleNavigation);
-  document.addEventListener('pjax:end', handleNavigation);
-  // GitLab uses Turbolinks
-  document.addEventListener('turbolinks:load', handleNavigation);
-  // Catch browser back/forward navigation
-  window.addEventListener('popstate', handleNavigation);
-
   // Listen for config changes (store reference for cleanup)
   storageListener = (changes, area) => {
     if (area === 'sync' && changes.rumdl_config) {
+      const wasEnabled = config?.enabled ?? false;
       config = validateAndMergeConfig(changes.rumdl_config.newValue);
       log('Config updated from storage');
+
+      if (!config.enabled) {
+        stopLinting();
+        return;
+      }
+
+      if (!wasEnabled || !lintingActive) {
+        startLinting();
+        return;
+      }
+
       // Update config on all panels and force re-lint all editors
       const linterConfig = toLinterConfig(config);
       for (const [textarea, state] of editorStates.entries()) {
         state.panel.updateConfig(linterConfig);
-        // Clear content hash to force re-lint with new config
-        state.lastContentHash = '';
+        syncGutterVisibility(textarea, state);
+        // Clear cached content to force re-lint with the new config
+        state.lastContent = null;
         performLint(textarea);
       }
     }
   };
   chrome.storage.onChanged.addListener(storageListener);
+
+  if (config.enabled) {
+    startLinting();
+  } else {
+    log('Extension is disabled');
+  }
 
   // Clean up on page unload
   window.addEventListener('beforeunload', cleanup);
@@ -232,33 +231,57 @@ async function init(): Promise<void> {
 function cleanup(): void {
   log('Cleaning up all resources');
 
-  // Clean up all editors
-  for (const textarea of editorStates.keys()) {
-    cleanupEditor(textarea);
-  }
-
-  // Disconnect editor manager
-  editorManager.disconnect();
-
-  // Unregister all keyboard shortcuts
-  keyboardShortcuts.unregisterAll();
+  stopLinting();
 
   // Remove storage listener
   if (storageListener) {
     chrome.storage.onChanged.removeListener(storageListener);
     storageListener = null;
   }
+}
 
-  // Remove navigation listeners
+/**
+ * Activate editor discovery and navigation listeners.
+ */
+function startLinting(): void {
+  if (lintingActive || !config?.enabled) return;
+
+  lintingActive = true;
+  editorManager.observe((textarea, event) => {
+    if (event === 'added') {
+      setupEditor(textarea);
+    } else {
+      cleanupEditor(textarea);
+    }
+  });
+
+  document.addEventListener('turbo:load', handleNavigation);
+  document.addEventListener('pjax:end', handleNavigation);
+  document.addEventListener('turbolinks:load', handleNavigation);
+  window.addEventListener('popstate', handleNavigation);
+}
+
+/**
+ * Remove all lint UI and listeners while retaining the configuration listener,
+ * so the extension can be enabled again without reloading the page.
+ */
+function stopLinting(): void {
+  lintingActive = false;
+
   document.removeEventListener('turbo:load', handleNavigation);
   document.removeEventListener('pjax:end', handleNavigation);
   document.removeEventListener('turbolinks:load', handleNavigation);
   window.removeEventListener('popstate', handleNavigation);
 
-  // Destroy global tooltip
-  destroyTooltip();
+  editorManager.disconnect();
 
-  // Stop service worker keep-alive
+  // Defensive cleanup in case an editor was detached without an observer event.
+  for (const textarea of Array.from(editorStates.keys())) {
+    cleanupEditor(textarea);
+  }
+
+  keyboardShortcuts.unregisterAll();
+  destroyTooltip();
   stopKeepAlive();
 }
 
@@ -274,33 +297,44 @@ function handleNavigation(): void {
  * Set up linting for a textarea
  */
 function setupEditor(textarea: HTMLTextAreaElement): void {
-  if (editorStates.has(textarea)) return;
+  if (editorStates.has(textarea) || !config?.enabled) return;
 
   log('Setting up editor:', textarea.placeholder || textarea.name || textarea.id || 'unnamed');
 
   // Create warning panel
   const panel = new WarningPanel();
 
-  // Create gutter for inline markers
-  const gutter = gutterMarkers.createGutter(textarea);
+  // Create gutter for inline markers when enabled
+  const gutter = config.showGutterIcons
+    ? gutterMarkers.createGutter(textarea)
+    : null;
 
   // Create status button in toolbar
   const button = createLintButton(textarea);
+
+  const inputHandler = () => scheduleLint(textarea);
+  const pasteHandler = (event: ClipboardEvent) => handlePaste(event, textarea);
 
   // Store state
   const state: EditorState = {
     panel,
     gutter,
     debounceTimer: null,
-    lastContent: '',
-    lastContentHash: '',
+    lastContent: null,
     warnings: [],
     button,
     currentWarningIndex: -1,
     lintTime: 0,
-    isPanelVisible: false
+    isPanelVisible: false,
+    inputHandler,
+    pasteHandler,
   };
   editorStates.set(textarea, state);
+
+  panel.setOnVisibilityChange((visible) => {
+    state.isPanelVisible = visible;
+    state.button?.setAttribute('aria-expanded', String(visible));
+  });
 
   // When a fix is applied from the panel, re-lint immediately (bypass debounce)
   panel.setOnFixApplied(() => {
@@ -309,16 +343,16 @@ function setupEditor(textarea: HTMLTextAreaElement): void {
       clearTimeout(state.debounceTimer);
       state.debounceTimer = null;
     }
-    // Clear content hash to force re-lint
-    state.lastContentHash = '';
+    // Clear cached content to force re-lint
+    state.lastContent = null;
     performLint(textarea);
   });
 
   // Add input listener with debounce
-  textarea.addEventListener('input', () => scheduleLint(textarea));
+  textarea.addEventListener('input', inputHandler);
 
   // Add paste handler for format on paste
-  textarea.addEventListener('paste', (e) => handlePaste(e, textarea));
+  textarea.addEventListener('paste', pasteHandler);
 
   // Register keyboard shortcuts
   keyboardShortcuts.register(textarea, (action, ta) => handleShortcut(action, ta));
@@ -352,10 +386,27 @@ function cleanupEditor(textarea: HTMLTextAreaElement): void {
   // Unregister shortcuts
   keyboardShortcuts.unregister(textarea);
 
+  textarea.removeEventListener('input', state.inputHandler);
+  textarea.removeEventListener('paste', state.pasteHandler);
+
   // Clean up tooltips
   destroyTooltip();
 
   editorStates.delete(textarea);
+}
+
+function syncGutterVisibility(textarea: HTMLTextAreaElement, state: EditorState): void {
+  if (config?.showGutterIcons) {
+    if (!state.gutter) {
+      state.gutter = gutterMarkers.createGutter(textarea);
+    }
+    return;
+  }
+
+  if (state.gutter) {
+    gutterMarkers.removeGutter(textarea);
+    state.gutter = null;
+  }
 }
 
 /**
@@ -372,36 +423,6 @@ function scheduleLint(textarea: HTMLTextAreaElement): void {
   state.debounceTimer = setTimeout(() => {
     performLint(textarea);
   }, LINT_DEBOUNCE_MS);
-}
-
-/**
- * Hash function for content comparison that avoids collisions
- * Combines length, sample characters, and a rolling hash
- */
-function hashContent(content: string): string {
-  const len = content.length;
-
-  // For very short content, just use the content itself
-  if (len < 50) {
-    return `${len}:${content}`;
-  }
-
-  // Rolling hash over entire content
-  let hash = 0;
-  for (let i = 0; i < len; i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-
-  // Sample characters from start, middle, and end for additional collision resistance
-  const samples = [
-    content.substring(0, 20),
-    content.substring(Math.floor(len / 2) - 10, Math.floor(len / 2) + 10),
-    content.substring(len - 20)
-  ].join('|');
-
-  return `${len}:${hash.toString(36)}:${samples.length}`;
 }
 
 /**
@@ -423,23 +444,24 @@ function getLineHeight(textarea: HTMLTextAreaElement): number {
  */
 async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
   const state = editorStates.get(textarea);
-  if (!state || !config) return;
+  if (!state || !config?.enabled) return;
 
   const content = textarea.value;
-  const contentHash = hashContent(content);
+  const requestConfig = config;
 
   // Skip if content hasn't changed
-  if (contentHash === state.lastContentHash) return;
+  if (content === state.lastContent) return;
   state.lastContent = content;
-  state.lastContentHash = contentHash;
+  state.panel.setLinting();
+  updateButton(state.button, state.warnings.length, state.lintTime, 'linting');
 
   // Skip empty content
   if (!content.trim()) {
     state.warnings = [];
     state.lintTime = 0;
-    state.panel.updateWarnings([], 0);
+    state.panel.updateWarnings([], 0, content);
     updateButton(state.button, 0, 0);
-    gutterMarkers.clear(state.gutter);
+    if (state.gutter) gutterMarkers.clear(state.gutter);
     return;
   }
 
@@ -448,20 +470,42 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     const healthy = await checkServiceWorkerHealth();
     if (!healthy) {
       log('Service worker not healthy, skipping lint');
+      state.panel.setError('Linting is unavailable. Type to retry or reload the page.');
+      updateButton(state.button, state.warnings.length, state.lintTime, 'error');
       return;
     }
 
-    const linterConfig = toLinterConfig(config);
+    if (
+      editorStates.get(textarea) !== state ||
+      textarea.value !== content ||
+      config !== requestConfig ||
+      !requestConfig.enabled
+    ) {
+      return;
+    }
+
+    const linterConfig = toLinterConfig(requestConfig);
     log('Linting with config:', JSON.stringify(linterConfig));
     const result = await lint(content, linterConfig);
     const { warnings, lintTimeMs } = result;
+
+    if (
+      editorStates.get(textarea) !== state ||
+      textarea.value !== content ||
+      config !== requestConfig ||
+      !requestConfig.enabled
+    ) {
+      return;
+    }
+
     log('Warnings received:', warnings.length, 'fixable:', warnings.filter(w => w.fix).length);
 
     state.warnings = warnings;
     state.lintTime = lintTimeMs;
+    state.currentWarningIndex = -1;
 
     // Update UI
-    state.panel.updateWarnings(warnings, lintTimeMs);
+    state.panel.updateWarnings(warnings, lintTimeMs, content);
     updateButton(state.button, warnings.length, lintTimeMs);
 
     // Fix callback for gutter tooltip
@@ -469,24 +513,36 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
       if (!warning.fix) return;
       const { start, end } = warning.fix.range;
       const { replacement } = warning.fix;
-      textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
-      textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+      if (!setTextareaValueIfUnchanged(
+        textarea,
+        content,
+        content.slice(0, start) + replacement + content.slice(end)
+      )) {
+        state.lastContent = null;
+        performLint(textarea);
+        return;
+      }
       // Re-lint immediately (bypass debounce)
       if (state.debounceTimer) {
         clearTimeout(state.debounceTimer);
         state.debounceTimer = null;
       }
-      state.lastContentHash = '';
+      state.lastContent = null;
       performLint(textarea);
     };
 
-    gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
+    if (state.gutter) {
+      gutterMarkers.render(state.gutter, textarea, warnings, handleFix);
+    }
 
     log(`Lint complete: ${warnings.length} warning(s) in ${lintTimeMs.toFixed(1)}ms`);
   } catch (error) {
     logError('Lint failed:', error);
     // Mark service worker as unhealthy to trigger recovery check on next lint
     serviceWorkerHealthy = false;
+    state.panel.setError('Linting failed. Type to retry.');
+    updateButton(state.button, state.warnings.length, state.lintTime, 'error');
+    showErrorNotification('Linting failed', 'Type to retry, or reload the page if the problem continues.');
   }
 }
 
@@ -505,11 +561,13 @@ async function handleShortcut(action: ShortcutAction, textarea: HTMLTextAreaElem
     case 'togglePanel':
       if (state.isPanelVisible) {
         state.panel.hide();
-        state.isPanelVisible = false;
       } else {
-        state.panel.show(textarea, toLinterConfig(config));
-        state.panel.updateWarnings(state.warnings, state.lintTime);
-        state.isPanelVisible = true;
+        state.panel.show(textarea, toLinterConfig(config), state.button ?? textarea);
+        state.panel.updateWarnings(
+          state.warnings,
+          state.lintTime,
+          state.lastContent ?? textarea.value
+        );
       }
       break;
 
@@ -534,15 +592,15 @@ async function formatDocument(textarea: HTMLTextAreaElement): Promise<void> {
   if (!config) return;
 
   try {
+    const originalValue = textarea.value;
     const linterConfig = toLinterConfig(config);
-    const fixed = await fix(textarea.value, linterConfig);
-    if (fixed !== textarea.value) {
+    const fixed = await fix(originalValue, linterConfig);
+    if (fixed !== originalValue && textarea.value === originalValue) {
       const cursorPos = textarea.selectionStart;
-      textarea.value = fixed;
+      if (!setTextareaValueIfUnchanged(textarea, originalValue, fixed)) return;
       // Try to maintain cursor position
       textarea.selectionStart = Math.min(cursorPos, fixed.length);
       textarea.selectionEnd = textarea.selectionStart;
-      textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     }
   } catch (error) {
     logError('Format failed:', error);
@@ -593,7 +651,7 @@ function jumpToWarning(textarea: HTMLTextAreaElement, warning: LintWarning): voi
  */
 function fixAtCursor(textarea: HTMLTextAreaElement): void {
   const state = editorStates.get(textarea);
-  if (!state) return;
+  if (!state || state.lastContent !== textarea.value) return;
 
   const cursorPos = textarea.selectionStart;
 
@@ -615,8 +673,7 @@ function fixAtCursor(textarea: HTMLTextAreaElement): void {
     const { replacement } = warning.fix;
 
     const value = textarea.value;
-    textarea.value = value.slice(0, start) + replacement + value.slice(end);
-    textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    setTextareaValue(textarea, value.slice(0, start) + replacement + value.slice(end));
 
     // Adjust cursor position
     const newPos = start + replacement.length;
@@ -682,7 +739,9 @@ function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'rumdl-status-btn';
-  button.setAttribute('aria-label', 'rumdl lint status');
+  button.setAttribute('aria-haspopup', 'dialog');
+  button.setAttribute('aria-expanded', 'false');
+  button.setAttribute('aria-label', 'rumdl: No issues. Activate to open lint details.');
   button.innerHTML = `
     <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
       <path d="M8 0a8 8 0 110 16A8 8 0 018 0zm0 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM8 7a1 1 0 011 1v3a1 1 0 01-2 0V8a1 1 0 011-1zm0-3.5a1 1 0 110 2 1 1 0 010-2z"/>
@@ -698,11 +757,13 @@ function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
     if (state && config) {
       if (state.isPanelVisible) {
         state.panel.hide();
-        state.isPanelVisible = false;
       } else {
-        state.panel.show(textarea, toLinterConfig(config));
-        state.panel.updateWarnings(state.warnings, state.lintTime);
-        state.isPanelVisible = true;
+        state.panel.show(textarea, toLinterConfig(config), button);
+        state.panel.updateWarnings(
+          state.warnings,
+          state.lintTime,
+          state.lastContent ?? textarea.value
+        );
       }
     }
   });
@@ -719,7 +780,12 @@ function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
 /**
  * Update the lint status button
  */
-function updateButton(button: HTMLElement | null, count: number, lintTime: number): void {
+function updateButton(
+  button: HTMLElement | null,
+  count: number,
+  lintTime: number,
+  status: 'ready' | 'linting' | 'error' = 'ready'
+): void {
   if (!button) return;
 
   const countEl = button.querySelector('.rumdl-status-count');
@@ -729,15 +795,30 @@ function updateButton(button: HTMLElement | null, count: number, lintTime: numbe
 
   const timeEl = button.querySelector('.rumdl-status-time');
   if (timeEl) {
-    timeEl.textContent = lintTime > 0 ? `${lintTime.toFixed(0)}ms` : '';
+    timeEl.textContent = status === 'linting'
+      ? 'Checking…'
+      : lintTime > 0
+        ? `${lintTime.toFixed(0)}ms`
+        : '';
   }
 
-  button.title = count === 0
+  const resultLabel = count === 0
     ? `rumdl: No issues${lintTime > 0 ? ` (${lintTime.toFixed(0)}ms)` : ''}`
     : `rumdl: ${count} issue${count > 1 ? 's' : ''}${lintTime > 0 ? ` (${lintTime.toFixed(0)}ms)` : ''}`;
+  const stateLabel = status === 'linting'
+    ? 'rumdl: Checking Markdown'
+    : status === 'error'
+      ? 'rumdl: Linting failed. Activate to view the last result.'
+      : resultLabel;
+
+  button.title = stateLabel;
+  button.setAttribute('aria-label', `${stateLabel}. Activate to open lint details.`);
+  button.toggleAttribute('aria-busy', status === 'linting');
 
   if (button.classList) {
     button.classList.toggle('has-warnings', count > 0);
+    button.classList.toggle('is-linting', status === 'linting');
+    button.classList.toggle('has-error', status === 'error');
   }
 }
 

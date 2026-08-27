@@ -90,6 +90,16 @@ describe('error-notification', () => {
       expect(notifications[0].textContent).toContain('Second error');
     });
 
+    it('resets the auto-dismiss timer when replacing a notification', () => {
+      showErrorNotification('First error');
+      vi.advanceTimersByTime(5000);
+      showErrorNotification('Second error');
+
+      vi.advanceTimersByTime(5000);
+
+      expect(document.querySelector('.rumdl-error-notification')?.textContent).toContain('Second error');
+    });
+
     it('sets ARIA role to alert', () => {
       showErrorNotification('Error');
 

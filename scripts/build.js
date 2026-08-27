@@ -32,7 +32,7 @@ await esbuild.build({
   bundle: true,
   outfile: join(rootDir, 'dist/content/content-script.js'),
   format: 'iife',
-  target: 'chrome100',
+  target: 'chrome121',
   minify: false,
   sourcemap: false,
 });
@@ -45,7 +45,7 @@ await esbuild.build({
   bundle: true,
   outfile: join(rootDir, 'dist/background/service-worker.js'),
   format: 'esm',
-  target: 'chrome100',
+  target: 'chrome121',
   minify: false,
   sourcemap: false,
 });

@@ -1,184 +1,272 @@
-// E2E tests for rumdl Chrome extension
-// Uses Puppeteer to load the extension on mock pages and verify behavior
-
-import puppeteer from 'puppeteer';
+import assert from 'node:assert/strict';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
 import { startServer } from './server.mjs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import assert from 'assert';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const EXTENSION_PATH = join(__dirname, '..', '..');
+const PROJECT_PATH = join(__dirname, '..', '..');
+const DEFAULT_CONFIG = {
+  enabled: true,
+  flavor: 'standard',
+  lineLength: 80,
+  disabledRules: ['MD041'],
+  enabledRules: [],
+  ruleConfigs: {},
+  autoFormat: false,
+  showGutterIcons: true,
+  reflow: false,
+};
 
-let browser, server;
+let context;
+let extensionPath;
+let server;
+let serviceWorker;
+let extensionId;
+
+async function prepareTestExtension() {
+  extensionPath = await mkdtemp(join(tmpdir(), 'rumdl-extension-e2e-'));
+  await Promise.all([
+    cp(join(PROJECT_PATH, 'dist'), join(extensionPath, 'dist'), { recursive: true }),
+    cp(join(PROJECT_PATH, 'icons'), join(extensionPath, 'icons'), { recursive: true }),
+    cp(join(PROJECT_PATH, 'popup'), join(extensionPath, 'popup'), { recursive: true }),
+  ]);
+
+  const manifest = JSON.parse(await readFile(join(PROJECT_PATH, 'manifest.json'), 'utf8'));
+  const testOrigin = 'http://127.0.0.1/*';
+  manifest.host_permissions = [...manifest.host_permissions, testOrigin];
+  manifest.content_scripts[0].matches = [testOrigin];
+  manifest.web_accessible_resources[0].matches = [testOrigin];
+  await writeFile(
+    join(extensionPath, 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`
+  );
+}
 
 async function setup() {
-  const serverInfo = await startServer();
-  server = serverInfo;
+  server = await startServer();
+  await prepareTestExtension();
 
-  browser = await puppeteer.launch({
-    headless: 'new',
+  context = await chromium.launchPersistentContext(join(extensionPath, 'profile'), {
+    channel: 'chromium',
+    headless: process.env.HEADED !== '1',
     args: [
-      `--disable-extensions-except=${EXTENSION_PATH}`,
-      `--load-extension=${EXTENSION_PATH}`,
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
     ],
   });
+
+  serviceWorker = context.serviceWorkers()[0]
+    ?? await context.waitForEvent('serviceworker');
+  extensionId = new URL(serviceWorker.url()).host;
 }
 
 async function teardown() {
-  if (browser) await browser.close();
-  if (server) server.server.close();
+  await context?.close();
+  await new Promise(resolve => server?.server.close(resolve));
+  if (extensionPath) {
+    await rm(extensionPath, { recursive: true, force: true });
+  }
 }
 
-// ---- Helpers ----
+async function setConfig(overrides = {}) {
+  const config = { ...DEFAULT_CONFIG, ...overrides };
+  await serviceWorker.evaluate(async value => {
+    await chrome.storage.sync.set({ rumdl_config: value });
+  }, config);
+}
 
-async function loadPage(fixture) {
-  const page = await browser.newPage();
+async function loadPage(fixture, config = {}) {
+  await setConfig(config);
+  const page = await context.newPage();
   await page.goto(`${server.url}/${fixture}`, { waitUntil: 'domcontentloaded' });
-  // Wait for extension content script to initialize
-  await page.waitForTimeout(2000);
+  await page.locator('textarea[data-rumdl-managed="true"]').waitFor();
   return page;
 }
 
-async function typeAndWait(page, selector, text) {
-  await page.type(selector, text);
-  // Wait for debounced lint to complete
-  await page.waitForTimeout(500);
+async function testEditorDetection() {
+  for (const [fixture, selector] of [
+    ['github-mock.html', 'textarea[aria-label="Markdown value"]'],
+    ['gitlab-mock.html', 'textarea.note-textarea'],
+  ]) {
+    const page = await loadPage(fixture);
+    const managed = await page.locator(selector).getAttribute('data-rumdl-managed');
+    assert.equal(managed, 'true');
+    await page.close();
+  }
 }
 
-// ---- GitHub Tests ----
-
-async function testGitHubTextareaDetected() {
+async function testRealLintResults() {
   const page = await loadPage('github-mock.html');
+  await page.locator('textarea').fill('# Duplicate\n\n# Duplicate\n');
+  await page.locator('.rumdl-gutter-marker').first().waitFor();
 
-  const isManaged = await page.$eval('textarea', (el) => el.dataset.rumdlManaged === 'true');
-  assert(isManaged, 'GitHub textarea should be detected and managed by rumdl');
-
+  const count = await page.locator('.rumdl-status-count').textContent();
+  assert.notEqual(count, '0', 'status button should report actual lint warnings');
   await page.close();
-  console.log('  PASS: GitHub — textarea detected and managed');
 }
 
-async function testGitHubGutterCreated() {
+async function testPanelVisibilityState() {
   const page = await loadPage('github-mock.html');
+  await page.locator('textarea').fill('# Duplicate\n\n# Duplicate\n');
+  await page.locator('.rumdl-gutter-marker').first().waitFor();
+  const statusButton = page.locator('.rumdl-status-btn');
+  await statusButton.click();
+  const panel = page.locator('.rumdl-panel');
+  await panel.locator('.rumdl-warning-jump').first().waitFor();
 
-  const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'GitHub page should have a gutter container');
+  assert.equal(await panel.getAttribute('aria-hidden'), 'false');
+  assert.equal(await panel.getAttribute('inert'), null);
+  assert.equal(await statusButton.getAttribute('aria-expanded'), 'true');
 
+  const warningButton = panel.locator('.rumdl-warning-jump').first();
+  await warningButton.focus();
+  await warningButton.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA');
+  assert.equal(await warningButton.getAttribute('aria-current'), 'true');
+
+  const panelBox = await panel.boundingBox();
+  assert.ok(panelBox, 'visible panel should have a bounding box');
+
+  await page.locator('.rumdl-btn-close').click();
+  assert.equal(await panel.getAttribute('aria-hidden'), 'true');
+  assert.notEqual(await panel.getAttribute('inert'), null);
+  assert.equal(await statusButton.getAttribute('aria-expanded'), 'false');
+  assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('rumdl-status-btn')), true);
+
+  const hiddenHitTarget = await page.evaluate(({ x, y }) => {
+    const target = document.elementFromPoint(x, y);
+    return Boolean(target?.closest('.rumdl-panel'));
+  }, { x: panelBox.x + panelBox.width / 2, y: panelBox.y + panelBox.height / 2 });
+  assert.equal(hiddenHitTarget, false, 'hidden panel must not block the page');
   await page.close();
-  console.log('  PASS: GitHub — gutter container created');
 }
 
-async function testGitHubLintResults() {
+async function testPanelFitsNarrowViewport() {
   const page = await loadPage('github-mock.html');
+  await page.setViewportSize({ width: 320, height: 480 });
+  await page.locator('textarea').fill('# Duplicate\n\n# Duplicate\n');
+  await page.locator('.rumdl-gutter-marker').first().waitFor();
+  await page.locator('.rumdl-status-btn').click();
+  const panel = page.locator('.rumdl-panel.visible');
+  await panel.waitFor();
 
-  // Type markdown with known lint issues
-  await typeAndWait(page, 'textarea', '# Hello\nworld\n');
-
-  // Gutter should still be present after typing
-  const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'GitHub gutter should exist after typing');
-
+  const bounds = await panel.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  assert.ok(bounds.left >= 0 && bounds.right <= bounds.viewportWidth, 'panel should fit horizontally');
+  assert.ok(bounds.top >= 0 && bounds.bottom <= bounds.viewportHeight, 'panel should fit vertically');
   await page.close();
-  console.log('  PASS: GitHub — lint runs after typing');
 }
 
-async function testGitHubStatusButton() {
-  const page = await loadPage('github-mock.html');
+async function testPopupKeyboardAndRules() {
+  await setConfig();
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 380, height: 560 });
+  await page.goto(`chrome-extension://${extensionId}/popup/popup.html`);
 
-  // Type some markdown so lint runs
-  await typeAndWait(page, 'textarea', '# Test\n\nSome content\n');
+  const generalTab = page.getByRole('tab', { name: 'General' });
+  const rulesTab = page.getByRole('tab', { name: 'Rules' });
+  await generalTab.waitFor();
+  await generalTab.focus();
+  await generalTab.press('ArrowRight');
+  assert.equal(await rulesTab.getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#tab-rules').isVisible(), true);
 
-  // Toolbar button may or may not exist depending on toolbar detection
-  // but the gutter should be present
-  const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'GitHub gutter should exist');
+  const search = page.getByRole('searchbox', { name: 'Search rules' });
+  await page.locator('.rule-item').first().waitFor();
+  await search.fill('MD013');
+  const visibleRuleNames = await page.locator('.rule-item .rule-name').allTextContents();
+  assert.ok(visibleRuleNames.length > 0, 'rule search should return MD013');
+  assert.ok(visibleRuleNames.every(name => name.includes('MD013')));
 
+  await rulesTab.press('Home');
+  assert.equal(await generalTab.getAttribute('aria-selected'), 'true');
+  const lineLength = page.getByRole('spinbutton', { name: 'Line length' });
+  await lineLength.fill('39');
+  await lineLength.press('Tab');
+  assert.equal(await lineLength.getAttribute('aria-invalid'), 'true');
+  assert.match(await page.locator('#lineLengthError').textContent(), /40 to 500/);
+
+  await lineLength.fill('100');
+  await lineLength.press('Tab');
+  await page.locator('#saveStatus').filter({ hasText: 'All changes saved' }).waitFor();
+  const savedLineLength = await serviceWorker.evaluate(async () => {
+    const result = await chrome.storage.sync.get('rumdl_config');
+    return result.rumdl_config.lineLength;
+  });
+  assert.equal(savedLineLength, 100);
   await page.close();
-  console.log('  PASS: GitHub — status UI present');
 }
 
-async function testGitHubRealTimeLint() {
-  const page = await loadPage('github-mock.html');
+async function testRuntimeEnableToggle() {
+  await setConfig({ enabled: false });
+  const page = await context.newPage();
+  await page.goto(`${server.url}/gitlab-mock.html`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(750);
+  assert.equal(await page.locator('textarea[data-rumdl-managed="true"]').count(), 0);
 
-  // Type content, then modify it
-  await typeAndWait(page, 'textarea', '# Heading\n\n');
-  await typeAndWait(page, 'textarea', 'More text added\n');
+  await setConfig({ enabled: true });
+  await page.locator('textarea[data-rumdl-managed="true"]').waitFor();
 
-  // Gutter should still be present and functional
-  const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'GitHub gutter should persist through edits');
+  await setConfig({ enabled: false });
+  await page.locator('textarea[data-rumdl-managed="true"]').waitFor({ state: 'detached' });
+  assert.equal(await page.locator('.rumdl-gutter').count(), 0);
 
+  await setConfig({ enabled: true });
+  await page.locator('textarea[data-rumdl-managed="true"]').waitFor();
   await page.close();
-  console.log('  PASS: GitHub — real-time updates work');
 }
 
-// ---- GitLab Tests ----
+async function testRuntimeGutterToggle() {
+  const page = await loadPage('github-mock.html', { showGutterIcons: false });
+  assert.equal(await page.locator('.rumdl-gutter').count(), 0);
 
-async function testGitLabTextareaDetected() {
-  const page = await loadPage('gitlab-mock.html');
+  await setConfig({ showGutterIcons: true });
+  await page.locator('.rumdl-gutter').waitFor();
 
-  const isManaged = await page.$eval('textarea.note-textarea', (el) => el.dataset.rumdlManaged === 'true');
-  assert(isManaged, 'GitLab textarea should be detected and managed by rumdl');
-
+  await setConfig({ showGutterIcons: false });
+  await page.locator('.rumdl-gutter').waitFor({ state: 'detached' });
   await page.close();
-  console.log('  PASS: GitLab — textarea detected and managed');
 }
 
-async function testGitLabGutterCreated() {
-  const page = await loadPage('gitlab-mock.html');
-
-  const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'GitLab page should have a gutter container');
-
-  await page.close();
-  console.log('  PASS: GitLab — gutter container created');
-}
-
-async function testGitLabLintResults() {
-  const page = await loadPage('gitlab-mock.html');
-
-  // Type markdown with known lint issues
-  await typeAndWait(page, 'textarea.note-textarea', '# Hello\nworld\n');
-
-  const gutter = await page.$('.rumdl-gutter');
-  assert(gutter, 'GitLab gutter should exist after typing');
-
-  await page.close();
-  console.log('  PASS: GitLab — lint runs after typing');
-}
-
-// ---- Runner ----
+const tests = [
+  ['GitHub and GitLab editors are detected', testEditorDetection],
+  ['linting returns and renders real warnings', testRealLintResults],
+  ['panel is keyboard-operable, inert when hidden, and restores focus', testPanelVisibilityState],
+  ['panel stays inside a narrow viewport', testPanelFitsNarrowViewport],
+  ['popup tabs, rules search, validation, and saving work', testPopupKeyboardAndRules],
+  ['enable setting updates the active page', testRuntimeEnableToggle],
+  ['gutter setting updates the active page', testRuntimeGutterToggle],
+];
 
 async function run() {
   console.log('rumdl Chrome Extension E2E Tests');
-  console.log('================================\n');
+  console.log('================================');
 
   try {
     await setup();
-    console.log(`Test server: ${server.url}`);
-    console.log(`Extension: ${EXTENSION_PATH}\n`);
-
-    console.log('GitHub:');
-    await testGitHubTextareaDetected();
-    await testGitHubGutterCreated();
-    await testGitHubLintResults();
-    await testGitHubStatusButton();
-    await testGitHubRealTimeLint();
-
-    console.log('\nGitLab:');
-    await testGitLabTextareaDetected();
-    await testGitLabGutterCreated();
-    await testGitLabLintResults();
-
-    console.log('\nAll E2E tests passed! (8/8)');
+    for (const [name, test] of tests) {
+      await test();
+      console.log(`  PASS: ${name}`);
+    }
+    console.log(`\nAll E2E tests passed! (${tests.length}/${tests.length})`);
   } catch (error) {
-    console.error('\nTest failed:', error.message);
-    process.exit(1);
+    console.error(`\nTest failed: ${error.stack ?? error.message}`);
+    process.exitCode = 1;
   } finally {
     await teardown();
   }
 }
 
-run();
+await run();

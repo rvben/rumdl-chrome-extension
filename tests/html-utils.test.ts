@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeHtml } from '../src/shared/html-utils';
+import { escapeHtml, escapeHtmlAttribute } from '../src/shared/html-utils';
 
 describe('escapeHtml', () => {
   it('escapes less than sign', () => {
@@ -68,5 +68,26 @@ describe('escapeHtml', () => {
     expect(escapeHtml('line1\nline2')).toBe('line1\nline2');
     expect(escapeHtml('  spaces  ')).toBe('  spaces  ');
     expect(escapeHtml('\ttab')).toBe('\ttab');
+  });
+});
+
+describe('escapeHtmlAttribute', () => {
+  it('escapes both quote styles for attribute contexts', () => {
+    expect(escapeHtmlAttribute(`say "hello" and it's fine`)).toBe(
+      'say &quot;hello&quot; and it&#39;s fine'
+    );
+  });
+
+  it('prevents untrusted text from creating additional attributes', () => {
+    const host = document.createElement('div');
+    const value = escapeHtmlAttribute('warning" autofocus onfocus="alert(1)');
+    host.innerHTML = `<div aria-label="${value}"></div>`;
+
+    const element = host.firstElementChild;
+    expect(element?.getAttribute('aria-label')).toBe(
+      'warning" autofocus onfocus="alert(1)'
+    );
+    expect(element?.hasAttribute('autofocus')).toBe(false);
+    expect(element?.hasAttribute('onfocus')).toBe(false);
   });
 });

@@ -1,26 +1,31 @@
-// Popup script for rumdl Chrome extension
-
-const DEFAULT_CONFIG = {
-  enabled: true,
-  flavor: 'standard',
-  lineLength: 80,
-  disabledRules: ['MD041'],
-  enabledRules: [],
-  ruleConfigs: {},
-  autoFormat: false,
-  showGutterIcons: true,
-  reflow: false
-};
+import {
+  DEFAULT_CONFIG,
+  filterRules,
+  formatShortcut,
+  isRuleEnabled,
+  isValidLineLength,
+  mergeEditableConfig,
+  parseRuleList,
+  updateRuleSelection,
+  validateConfig,
+} from './config-utils.js';
 
 const STORAGE_KEY = 'rumdl_config';
 
-// DOM elements
 const elements = {
+  mainContent: document.getElementById('mainContent'),
+  startupState: document.getElementById('startupState'),
+  startupMessage: document.getElementById('startupMessage'),
+  retryLoadBtn: document.getElementById('retryLoadBtn'),
+  settingsShell: document.getElementById('settingsShell'),
   version: document.getElementById('version'),
   ruleCount: document.getElementById('ruleCount'),
+  saveStatus: document.getElementById('saveStatus'),
+  retrySaveBtn: document.getElementById('retrySaveBtn'),
   enabled: document.getElementById('enabled'),
   flavor: document.getElementById('flavor'),
   lineLength: document.getElementById('lineLength'),
+  lineLengthError: document.getElementById('lineLengthError'),
   disabledRules: document.getElementById('disabledRules'),
   enabledRules: document.getElementById('enabledRules'),
   showGutterIcons: document.getElementById('showGutterIcons'),
@@ -30,296 +35,431 @@ const elements = {
   exportBtn: document.getElementById('exportBtn'),
   importBtn: document.getElementById('importBtn'),
   importFile: document.getElementById('importFile'),
+  ruleSearch: document.getElementById('ruleSearch'),
+  rulesMode: document.getElementById('rulesMode'),
   rulesList: document.getElementById('rulesList'),
-  tabs: document.querySelectorAll('.tab'),
-  tabContents: document.querySelectorAll('.tab-content')
+  rulesResults: document.getElementById('rulesResults'),
+  tabs: [...document.querySelectorAll('[role="tab"]')],
+  tabContents: [...document.querySelectorAll('[role="tabpanel"]')],
+  shortcuts: [...document.querySelectorAll('[data-shortcut]')],
 };
 
-let allRules = [];
+let currentConfig = validateConfig(DEFAULT_CONFIG);
+let availableRules = [];
+let saveQueue = Promise.resolve();
+let saveRequestId = 0;
+let failedSaveConfig = null;
+let listenersReady = false;
 
-const VALID_FLAVORS = ['standard', 'mkdocs', 'mdx', 'quarto', 'obsidian'];
-
-// Escape HTML to prevent XSS
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-// Load config from storage
 async function loadConfig() {
+  const result = await chrome.storage.sync.get(STORAGE_KEY);
+  return validateConfig(result[STORAGE_KEY]);
+}
+
+async function writeConfig(config) {
+  const validatedConfig = validateConfig(config);
+  await chrome.storage.sync.set({ [STORAGE_KEY]: validatedConfig });
+  return validatedConfig;
+}
+
+function setSaveStatus(message, state = 'idle', retryConfig = null) {
+  elements.saveStatus.textContent = message;
+  elements.saveStatus.dataset.state = state;
+  failedSaveConfig = retryConfig;
+  elements.retrySaveBtn.hidden = !retryConfig;
+}
+
+async function requestSave(config, successMessage = 'All changes saved') {
+  const validatedConfig = validateConfig(config);
+  currentConfig = validatedConfig;
+  const requestId = ++saveRequestId;
+  setSaveStatus('Saving…', 'saving');
+
+  const operation = saveQueue.then(() => writeConfig(validatedConfig));
+  saveQueue = operation.catch(() => undefined);
+
   try {
-    const result = await chrome.storage.sync.get(STORAGE_KEY);
-    return result[STORAGE_KEY] ? { ...DEFAULT_CONFIG, ...result[STORAGE_KEY] } : DEFAULT_CONFIG;
+    const savedConfig = await operation;
+    if (requestId === saveRequestId) {
+      setSaveStatus(successMessage, 'saved');
+    }
+    return savedConfig;
   } catch (error) {
-    console.error('Failed to load config:', error);
-    return DEFAULT_CONFIG;
+    console.error('Failed to save settings:', error);
+    if (requestId === saveRequestId) {
+      setSaveStatus('Could not save changes.', 'error', validatedConfig);
+    }
+    return null;
   }
 }
 
-// Save config to storage
-async function saveConfig(config) {
-  try {
-    await chrome.storage.sync.set({ [STORAGE_KEY]: config });
-    console.log('Config saved:', config);
-  } catch (error) {
-    console.error('Failed to save config:', error);
+function validateLineLengthField() {
+  const isValid = isValidLineLength(elements.lineLength.value);
+  const message = isValid ? '' : 'Enter a whole number from 40 to 500.';
+  elements.lineLength.setCustomValidity(message);
+  elements.lineLength.setAttribute('aria-invalid', String(!isValid));
+  elements.lineLengthError.textContent = message;
+  return isValid;
+}
+
+function updateRuleMode(config) {
+  const enabledCount = config.enabledRules.length;
+  const disabledCount = config.disabledRules.length;
+
+  if (enabledCount > 0) {
+    const finalRuleHint = enabledCount === 1 ? ' Select another before turning off the last one.' : '';
+    elements.rulesMode.textContent = `${enabledCount} selected ${enabledCount === 1 ? 'rule' : 'rules'} enabled; disabled rules take precedence.${finalRuleHint}`;
+  } else if (disabledCount > 0) {
+    elements.rulesMode.textContent = `All rules enabled except ${disabledCount} disabled ${disabledCount === 1 ? 'rule' : 'rules'}.`;
+  } else {
+    elements.rulesMode.textContent = 'All rules enabled.';
   }
 }
 
-// Update UI with config values
 function updateUI(config) {
-  elements.enabled.checked = config.enabled;
-  elements.flavor.value = config.flavor;
-  elements.lineLength.value = config.lineLength;
-  elements.disabledRules.value = config.disabledRules.join(', ');
-  elements.enabledRules.value = config.enabledRules.join(', ');
-  elements.showGutterIcons.checked = config.showGutterIcons;
-  elements.autoFormat.checked = config.autoFormat;
-  elements.reflow.checked = config.reflow;
-
-  // Update rules list checkboxes
-  updateRulesListUI(config);
+  currentConfig = validateConfig(config);
+  elements.enabled.checked = currentConfig.enabled;
+  elements.flavor.value = currentConfig.flavor;
+  elements.lineLength.value = String(currentConfig.lineLength);
+  elements.disabledRules.value = currentConfig.disabledRules.join(', ');
+  elements.enabledRules.value = currentConfig.enabledRules.join(', ');
+  elements.showGutterIcons.checked = currentConfig.showGutterIcons;
+  elements.autoFormat.checked = currentConfig.autoFormat;
+  elements.reflow.checked = currentConfig.reflow;
+  validateLineLengthField();
+  updateRuleMode(currentConfig);
+  renderRulesList();
 }
 
-// Get config from UI
 function getConfigFromUI() {
-  const parseRuleList = (str) => {
-    const trimmed = str.trim();
-    return trimmed ? trimmed.split(',').map(r => r.trim().toUpperCase()).filter(r => r) : [];
-  };
-
-  return {
+  return mergeEditableConfig(currentConfig, {
     enabled: elements.enabled.checked,
     flavor: elements.flavor.value,
-    lineLength: parseInt(elements.lineLength.value, 10) || 80,
+    lineLength: Number(elements.lineLength.value),
     disabledRules: parseRuleList(elements.disabledRules.value),
     enabledRules: parseRuleList(elements.enabledRules.value),
-    ruleConfigs: {},
     autoFormat: elements.autoFormat.checked,
     showGutterIcons: elements.showGutterIcons.checked,
-    reflow: elements.reflow.checked
-  };
+    reflow: elements.reflow.checked,
+  });
 }
 
-// Get version from service worker
-async function getVersion() {
-  try {
-    const response = await chrome.runtime.sendMessage({ type: 'GET_VERSION' });
-    if (response && response.type === 'VERSION_RESULT') {
-      return response.version;
-    }
-  } catch (error) {
-    console.error('Failed to get version:', error);
-  }
-  return null;
-}
-
-// Get available rules from service worker
 async function getRules() {
-  try {
-    const response = await chrome.runtime.sendMessage({ type: 'GET_RULES' });
-    if (response && response.type === 'RULES_RESULT') {
-      return response.rules;
-    }
-  } catch (error) {
-    console.error('Failed to get rules:', error);
+  const response = await chrome.runtime.sendMessage({ type: 'GET_RULES' });
+  if (!response || response.type !== 'RULES_RESULT' || !Array.isArray(response.rules)) {
+    throw new Error('The background service did not return a valid rule list.');
   }
-  return [];
+  return response.rules;
 }
 
-// Render rules list
-function renderRulesList(rules, config) {
-  allRules = rules;
+function createRulesState(message, actionLabel, action) {
+  const state = document.createElement('div');
+  state.className = 'state-block compact';
 
-  if (rules.length === 0) {
-    elements.rulesList.innerHTML = '<div class="loading">No rules available</div>';
+  const text = document.createElement('span');
+  text.textContent = message;
+  state.appendChild(text);
+
+  if (actionLabel && action) {
+    const button = document.createElement('button');
+    button.className = 'btn btn-secondary btn-small';
+    button.type = 'button';
+    button.textContent = actionLabel;
+    button.addEventListener('click', action);
+    state.appendChild(button);
+  }
+
+  return state;
+}
+
+function renderRulesLoading() {
+  const state = createRulesState('Loading rules…');
+  const spinner = document.createElement('span');
+  spinner.className = 'spinner';
+  spinner.setAttribute('aria-hidden', 'true');
+  state.prepend(spinner);
+  elements.rulesList.replaceChildren(state);
+  elements.rulesList.setAttribute('aria-busy', 'true');
+  elements.ruleCount.textContent = 'Loading rules';
+}
+
+function renderRulesList() {
+  if (!availableRules.length) return;
+
+  const filteredRules = filterRules(availableRules, elements.ruleSearch.value);
+  elements.rulesList.setAttribute('aria-busy', 'false');
+  elements.ruleCount.textContent = `${availableRules.length} ${availableRules.length === 1 ? 'rule' : 'rules'}`;
+  elements.rulesResults.textContent = `${filteredRules.length} of ${availableRules.length} rules shown.`;
+
+  if (!filteredRules.length) {
+    const query = elements.ruleSearch.value.trim();
+    elements.rulesList.replaceChildren(createRulesState(
+      `No rules match “${query}”.`,
+      'Clear search',
+      () => {
+        elements.ruleSearch.value = '';
+        renderRulesList();
+        elements.ruleSearch.focus();
+      },
+    ));
     return;
   }
 
-  const disabledSet = new Set(config.disabledRules.map(r => r.toUpperCase()));
+  const fragment = document.createDocumentFragment();
+  filteredRules.forEach((rule, index) => {
+    const item = document.createElement('div');
+    item.className = 'rule-item';
 
-  elements.rulesList.innerHTML = rules.map(rule => {
-    const escapedName = escapeHtml(rule.name);
-    const escapedDesc = escapeHtml(rule.description);
-    return `
-    <div class="rule-item">
-      <input type="checkbox" id="rule-${escapedName}" data-rule="${escapedName}"
-             ${!disabledSet.has(rule.name.toUpperCase()) ? 'checked' : ''}>
-      <label for="rule-${escapedName}">
-        <span class="rule-name">${escapedName}</span>
-        <span class="rule-desc">${escapedDesc}</span>
-      </label>
-    </div>
-  `;
-  }).join('');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `rule-choice-${index}`;
+    checkbox.dataset.rule = rule.name;
+    checkbox.checked = isRuleEnabled(currentConfig, rule.name);
+    checkbox.disabled = currentConfig.enabledRules.length === 1 && checkbox.checked;
+    if (checkbox.disabled) {
+      checkbox.title = 'Select another rule before turning off the final enabled rule.';
+    }
 
-  // Add change listeners
-  elements.rulesList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-    checkbox.addEventListener('change', async (e) => {
-      const ruleName = e.target.dataset.rule;
-      const isEnabled = e.target.checked;
+    const label = document.createElement('label');
+    label.htmlFor = checkbox.id;
 
-      const config = await loadConfig();
-      const disabledSet = new Set(config.disabledRules.map(r => r.toUpperCase()));
+    const name = document.createElement('span');
+    name.className = 'rule-name';
+    name.textContent = rule.name;
 
-      if (isEnabled) {
-        disabledSet.delete(ruleName.toUpperCase());
-      } else {
-        disabledSet.add(ruleName.toUpperCase());
-      }
+    const description = document.createElement('span');
+    description.className = 'rule-desc';
+    description.textContent = rule.description;
 
-      config.disabledRules = Array.from(disabledSet);
-      await saveConfig(config);
-
-      // Update the text input to match
-      elements.disabledRules.value = config.disabledRules.join(', ');
-    });
+    label.append(name, description);
+    item.append(checkbox, label);
+    fragment.appendChild(item);
   });
 
-  elements.ruleCount.textContent = `${rules.length} rules`;
+  elements.rulesList.replaceChildren(fragment);
 }
 
-// Update rules list checkboxes based on config
-function updateRulesListUI(config) {
-  const disabledSet = new Set(config.disabledRules.map(r => r.toUpperCase()));
-
-  elements.rulesList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-    const ruleName = checkbox.dataset.rule;
-    checkbox.checked = !disabledSet.has(ruleName.toUpperCase());
-  });
+async function loadRules() {
+  renderRulesLoading();
+  try {
+    availableRules = await getRules();
+    if (!availableRules.length) {
+      elements.rulesList.setAttribute('aria-busy', 'false');
+      elements.rulesList.replaceChildren(createRulesState(
+        'No rules are available right now.',
+        'Reload rules',
+        loadRules,
+      ));
+      elements.ruleCount.textContent = 'No rules';
+      elements.rulesResults.textContent = 'No rules available.';
+      return;
+    }
+    renderRulesList();
+  } catch (error) {
+    console.error('Failed to load rules:', error);
+    availableRules = [];
+    elements.rulesList.setAttribute('aria-busy', 'false');
+    const state = createRulesState('Could not load the rule list.', 'Try again', loadRules);
+    state.dataset.state = 'error';
+    elements.rulesList.replaceChildren(state);
+    elements.ruleCount.textContent = 'Rules unavailable';
+    elements.rulesResults.textContent = 'The rule list could not be loaded.';
+  }
 }
 
-// Export config as JSON file
 function exportConfig(config) {
-  const dataStr = JSON.stringify(config, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'rumdl-config.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'rumdl-config.json';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
   URL.revokeObjectURL(url);
+  setSaveStatus('Settings exported', 'saved');
 }
 
-// Import config from JSON file
 async function importConfig(file) {
   try {
-    const text = await file.text();
-    const config = JSON.parse(text);
-
-    // Validate the config has expected properties
-    const validConfig = { ...DEFAULT_CONFIG };
-    if (typeof config.enabled === 'boolean') validConfig.enabled = config.enabled;
-    if (typeof config.flavor === 'string' && VALID_FLAVORS.includes(config.flavor)) {
-      validConfig.flavor = config.flavor;
+    const parsed = JSON.parse(await file.text());
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Settings must be a JSON object.');
     }
-    if (typeof config.lineLength === 'number') validConfig.lineLength = config.lineLength;
-    if (Array.isArray(config.disabledRules)) validConfig.disabledRules = config.disabledRules;
-    if (Array.isArray(config.enabledRules)) validConfig.enabledRules = config.enabledRules;
-    if (typeof config.autoFormat === 'boolean') validConfig.autoFormat = config.autoFormat;
-    if (typeof config.showGutterIcons === 'boolean') validConfig.showGutterIcons = config.showGutterIcons;
-    if (typeof config.reflow === 'boolean') validConfig.reflow = config.reflow;
-    if (typeof config.ruleConfigs === 'object') validConfig.ruleConfigs = config.ruleConfigs;
 
-    await saveConfig(validConfig);
-    updateUI(validConfig);
-    updateRulesListUI(validConfig);
-
-    alert('Configuration imported successfully!');
+    const importedConfig = validateConfig(parsed);
+    updateUI(importedConfig);
+    const savedConfig = await requestSave(importedConfig, 'Settings imported');
+    if (!savedConfig) return;
   } catch (error) {
-    console.error('Failed to import config:', error);
-    alert('Failed to import configuration. Make sure the file is valid JSON.');
+    console.error('Failed to import settings:', error);
+    setSaveStatus('Import failed. Choose a valid rumdl JSON file.', 'error');
   }
 }
 
-// Tab switching
+function activateTab(tab, focus = false) {
+  const panelId = tab.getAttribute('aria-controls');
+  for (const candidate of elements.tabs) {
+    const selected = candidate === tab;
+    candidate.classList.toggle('active', selected);
+    candidate.setAttribute('aria-selected', String(selected));
+    candidate.tabIndex = selected ? 0 : -1;
+  }
+
+  for (const panel of elements.tabContents) {
+    const selected = panel.id === panelId;
+    panel.classList.toggle('active', selected);
+    panel.hidden = !selected;
+  }
+
+  if (focus) tab.focus();
+}
+
 function setupTabs() {
-  elements.tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const tabId = tab.dataset.tab;
-
-      // Update active tab
-      elements.tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      // Update active content
-      elements.tabContents.forEach(content => {
-        content.classList.toggle('active', content.id === `tab-${tabId}`);
-      });
+  elements.tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activateTab(tab));
+    tab.addEventListener('keydown', event => {
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % elements.tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + elements.tabs.length) % elements.tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = elements.tabs.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      activateTab(elements.tabs[nextIndex], true);
     });
   });
 }
 
-// Initialize popup
-async function init() {
-  // Set up tabs
-  setupTabs();
-
-  // Load and display config
-  const config = await loadConfig();
-  updateUI(config);
-
-  // Get and display version
-  const version = await getVersion();
-  if (version) {
-    elements.version.textContent = `v${version}`;
+function setupShortcutLabels() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || '';
+  for (const shortcut of elements.shortcuts) {
+    const parts = shortcut.dataset.shortcut.split(',');
+    shortcut.textContent = formatShortcut(parts, platform);
   }
-
-  // Load rules list
-  const rules = await getRules();
-  renderRulesList(rules, config);
-
-  // Add change listeners for auto-save
-  const saveOnChange = async () => {
-    const newConfig = getConfigFromUI();
-    await saveConfig(newConfig);
-  };
-
-  elements.enabled.addEventListener('change', saveOnChange);
-  elements.flavor.addEventListener('change', saveOnChange);
-  elements.lineLength.addEventListener('change', saveOnChange);
-  elements.disabledRules.addEventListener('change', async () => {
-    await saveOnChange();
-    const config = await loadConfig();
-    updateRulesListUI(config);
-  });
-  elements.enabledRules.addEventListener('change', saveOnChange);
-  elements.showGutterIcons.addEventListener('change', saveOnChange);
-  elements.autoFormat.addEventListener('change', saveOnChange);
-  elements.reflow.addEventListener('change', saveOnChange);
-
-  // Reset button
-  elements.resetBtn.addEventListener('click', async () => {
-    if (confirm('Reset all settings to defaults?')) {
-      await saveConfig(DEFAULT_CONFIG);
-      updateUI(DEFAULT_CONFIG);
-      updateRulesListUI(DEFAULT_CONFIG);
-    }
-  });
-
-  // Export button
-  elements.exportBtn.addEventListener('click', async () => {
-    const config = await loadConfig();
-    exportConfig(config);
-  });
-
-  // Import button
-  elements.importBtn.addEventListener('click', () => {
-    elements.importFile.click();
-  });
-
-  elements.importFile.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      await importConfig(file);
-      e.target.value = ''; // Reset file input
-    }
-  });
 }
 
-// Start
-init().catch(console.error);
+async function saveFromUI() {
+  if (!validateLineLengthField()) {
+    setSaveStatus('Line length must be from 40 to 500.', 'error');
+    return;
+  }
+  await requestSave(getConfigFromUI());
+}
+
+function setupListeners() {
+  if (listenersReady) return;
+  listenersReady = true;
+
+  setupTabs();
+  setupShortcutLabels();
+
+  for (const control of [
+    elements.enabled,
+    elements.flavor,
+    elements.lineLength,
+    elements.showGutterIcons,
+    elements.autoFormat,
+    elements.reflow,
+  ]) {
+    control.addEventListener('change', saveFromUI);
+  }
+
+  elements.lineLength.addEventListener('input', () => {
+    if (validateLineLengthField() && elements.saveStatus.dataset.state === 'error' && !failedSaveConfig) {
+      setSaveStatus('Ready', 'idle');
+    }
+  });
+
+  const saveExpertRules = async () => {
+    const config = getConfigFromUI();
+    updateUI(config);
+    await requestSave(config);
+  };
+  elements.disabledRules.addEventListener('change', saveExpertRules);
+  elements.enabledRules.addEventListener('change', saveExpertRules);
+
+  elements.ruleSearch.addEventListener('input', renderRulesList);
+
+  elements.rulesList.addEventListener('change', async event => {
+    const checkbox = event.target.closest('input[type="checkbox"][data-rule]');
+    if (!checkbox) return;
+
+    const config = updateRuleSelection(currentConfig, checkbox.dataset.rule, checkbox.checked);
+    currentConfig = config;
+    elements.disabledRules.value = config.disabledRules.join(', ');
+    elements.enabledRules.value = config.enabledRules.join(', ');
+    updateRuleMode(config);
+    renderRulesList();
+    await requestSave(config);
+  });
+
+  elements.retrySaveBtn.addEventListener('click', async () => {
+    if (!failedSaveConfig) return;
+    await requestSave(failedSaveConfig);
+  });
+
+  elements.resetBtn.addEventListener('click', async () => {
+    if (!confirm('Reset all rumdl settings to their defaults?')) return;
+    const defaults = validateConfig(DEFAULT_CONFIG);
+    updateUI(defaults);
+    await requestSave(defaults, 'Settings reset');
+  });
+
+  elements.exportBtn.addEventListener('click', () => exportConfig(currentConfig));
+  elements.importBtn.addEventListener('click', () => elements.importFile.click());
+  elements.importFile.addEventListener('change', async event => {
+    const file = event.target.files?.[0];
+    if (file) await importConfig(file);
+    event.target.value = '';
+  });
+
+  elements.retryLoadBtn.addEventListener('click', initializeSettings);
+}
+
+function showStartupLoading() {
+  elements.startupState.dataset.state = 'loading';
+  elements.startupState.querySelector('.spinner').hidden = false;
+  elements.startupMessage.textContent = 'Loading settings…';
+  elements.retryLoadBtn.hidden = true;
+  elements.startupState.hidden = false;
+  elements.settingsShell.hidden = true;
+  elements.mainContent.setAttribute('aria-busy', 'true');
+}
+
+async function initializeSettings() {
+  showStartupLoading();
+  try {
+    const config = await loadConfig();
+    updateUI(config);
+    elements.startupState.hidden = true;
+    elements.settingsShell.hidden = false;
+    elements.mainContent.setAttribute('aria-busy', 'false');
+    setSaveStatus('Ready', 'idle');
+    void loadRules();
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+    elements.startupState.dataset.state = 'error';
+    elements.startupState.querySelector('.spinner').hidden = true;
+    elements.startupMessage.textContent = 'Could not load your settings.';
+    elements.retryLoadBtn.hidden = false;
+    elements.mainContent.setAttribute('aria-busy', 'false');
+    setSaveStatus('Settings unavailable', 'error');
+  }
+}
+
+function init() {
+  setupListeners();
+  try {
+    const version = chrome.runtime.getManifest().version;
+    if (version) {
+      elements.version.textContent = `v${version}`;
+      elements.version.hidden = false;
+    }
+  } catch (error) {
+    console.error('Failed to read extension version:', error);
+  }
+  void initializeSettings();
+}
+
+init();

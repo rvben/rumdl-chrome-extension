@@ -165,4 +165,21 @@ export class KeyboardShortcuts {
       };
     });
   }
+
+  /**
+   * Return the platform-appropriate label for a single shortcut.
+   */
+  static getShortcutKeys(action: ShortcutAction): string {
+    const shortcut = SHORTCUTS.find(definition => definition.action === action);
+    if (!shortcut) return '';
+
+    const isMac = isMacOS();
+    const keys: string[] = [];
+    if (shortcut.ctrlOrCmd) keys.push(isMac ? '⌘' : 'Ctrl');
+    if (shortcut.shift) keys.push(isMac ? '⇧' : 'Shift');
+    if (shortcut.alt) keys.push(isMac ? '⌥' : 'Alt');
+    keys.push(shortcut.key.toUpperCase());
+
+    return isMac ? keys.join('') : keys.join('+');
+  }
 }

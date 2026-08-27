@@ -7,7 +7,7 @@ A Chrome extension that provides real-time Markdown linting for GitHub and GitLa
 - **Real-time linting**: Lint your markdown as you type in issue descriptions, PR descriptions, comments, and more
 - **Multi-site support**: Works on GitHub and GitLab
 - **Visual indicators**: Gutter markers show warning locations directly in the editor
-- **Warning panel**: Side panel showing all issues with click-to-jump navigation
+- **Warning panel**: Responsive issue panel with keyboard and click-to-jump navigation
 - **Auto-fix**: Fix all auto-fixable issues with one click (Cmd/Ctrl+Shift+F)
 - **Per-issue fixes**: Fix individual issues inline
 - **Multiple markdown flavors**: Standard, MkDocs, MDX, Quarto, and Obsidian
@@ -16,7 +16,7 @@ A Chrome extension that provides real-time Markdown linting for GitHub and GitLa
 
 ## Requirements
 
-- **Chrome 90+** (or Chromium-based browser like Edge, Brave, Arc)
+- **Chrome 121+** (or a compatible Chromium-based browser)
 - WebAssembly support (enabled by default in modern browsers)
 
 ## Installation
@@ -132,7 +132,7 @@ The extension uses WebAssembly to run rumdl directly in the browser:
 - **Content Script**: Detects editors and manages the lint UI
 - **Popup**: Configuration interface
 
-The WASM binary is ~3 MB (downloaded once and cached).
+The WASM binary is approximately 5 MB and runs entirely within the extension.
 
 ## Development
 
@@ -142,13 +142,23 @@ All CI/CD steps are Make targets that can be run locally:
 make install        # Install dependencies
 make build          # Build the extension
 make lint           # TypeScript type checking
-make test-unit      # Run unit tests (128 tests)
+make test-unit      # Run the unit test suite
+make test-e2e        # Build and test the loaded extension in Chromium
+npm run screenshots  # Capture real-extension popup and editor UI states
 make test           # Lint + unit tests
 make check          # Lint + test + build
 make package        # Create rumdl-extension.zip
 make ci             # Full CI pipeline (install + check + package)
 make check-size     # Verify extension size is under Chrome Web Store limit
 make watch          # Development watch mode
+```
+
+The latest visual and behavioral assessment is available as an
+[HTML before/after report](reports/extension-before-after.html). To preserve an
+existing screenshot baseline while capturing a new comparison set, run:
+
+```bash
+SCREENSHOT_PREFIX=after- npm run screenshots
 ```
 
 ### WASM Module

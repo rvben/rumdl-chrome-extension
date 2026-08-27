@@ -1,7 +1,8 @@
 // Tooltip - rich hover tooltips for lint warnings
 
 import type { LintWarning } from '../shared/types.js';
-import { escapeHtml } from '../shared/html-utils.js';
+import { escapeHtml, escapeHtmlAttribute } from '../shared/html-utils.js';
+import { KeyboardShortcuts } from './keyboard-shortcuts.js';
 
 let tooltip: HTMLElement | null = null;
 let hideTimeout: number | null = null;
@@ -17,19 +18,9 @@ function ensureTooltip(): HTMLElement {
   tooltip.setAttribute('role', 'tooltip');
   tooltip.style.cssText = `
     position: fixed;
-    z-index: 10000;
-    max-width: 400px;
-    padding: 8px 12px;
-    background: var(--bgColor-emphasis, #24292f);
-    color: var(--fgColor-onEmphasis, #ffffff);
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.4;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     pointer-events: none;
     opacity: 0;
     transform: translateY(4px);
-    transition: opacity 0.15s ease, transform 0.15s ease;
   `;
 
   // Hide tooltip when mouse leaves it
@@ -51,49 +42,24 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
   }
 
   const tip = ensureTooltip();
-
-  const severityColor = {
-    error: '#f38ba8',
-    warning: '#fab387',
-    info: '#89b4fa'
-  }[warning.severity];
+  tip.style.pointerEvents = 'none';
 
   const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');
+  const severityClass = ['error', 'warning', 'info'].includes(warning.severity)
+    ? warning.severity
+    : 'warning';
   const escapedSeverity = escapeHtml(warning.severity);
+  const quickFixShortcut = escapeHtml(KeyboardShortcuts.getShortcutKeys('fixCurrent'));
 
   tip.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-      <span style="
-        display: inline-block;
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: ${severityColor};
-        color: #1e1e2e;
-        font-size: 11px;
-        font-weight: 600;
-        font-family: ui-monospace, SFMono-Regular, monospace;
-      ">${escapedRuleName}</span>
-      <span style="
-        color: ${severityColor};
-        font-weight: 500;
-      ">${escapedSeverity}</span>
+    <div class="rumdl-tooltip-header">
+      <span class="rumdl-tooltip-rule ${severityClass}">${escapedRuleName}</span>
+      <span>${escapedSeverity}</span>
     </div>
-    <div style="color: #e6edf3;">${escapeHtml(warning.message)}</div>
+    <div class="rumdl-tooltip-message">${escapeHtml(warning.message)}</div>
     ${warning.fix ? `
-      <div style="
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid rgba(255,255,255,0.1);
-        color: #8b949e;
-        font-size: 11px;
-      ">
-        <kbd style="
-          display: inline-block;
-          padding: 2px 4px;
-          background: rgba(255,255,255,0.1);
-          border-radius: 3px;
-          font-family: ui-monospace, SFMono-Regular, monospace;
-        ">Ctrl+.</kbd> Quick fix available
+      <div class="rumdl-tooltip-hint">
+        <kbd>${quickFixShortcut}</kbd> Quick fix available
       </div>
     ` : ''}
   `;
@@ -107,8 +73,8 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
   let top = y + 10;
 
   // Adjust if tooltip would go off screen
-  if (left + 400 > viewportWidth) {
-    left = x - 410;
+  if (left + Math.max(tipRect.width, 360) > viewportWidth) {
+    left = x - Math.max(tipRect.width, 360) - 10;
   }
   if (top + tipRect.height > viewportHeight) {
     top = y - tipRect.height - 10;
@@ -140,48 +106,27 @@ export function showWarningsTooltip(
   tip.style.pointerEvents = onFix ? 'auto' : 'none';
 
   const warningsHtml = warnings.map((warning, index) => {
-    const severityColor = {
-      error: 'var(--color-danger-fg, #cf222e)',
-      warning: 'var(--color-attention-fg, #9a6700)',
-      info: 'var(--color-accent-fg, #0969da)'
-    }[warning.severity];
-
     const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');
+    const escapedRuleAttribute = escapeHtmlAttribute(warning.rule_name || 'rumdl');
+    const severityClass = ['error', 'warning', 'info'].includes(warning.severity)
+      ? warning.severity
+      : 'warning';
     const hasFix = warning.fix && onFix;
 
     return `
-      <div class="rumdl-tooltip-warning" data-index="${index}" style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--color-border-muted, #d0d7de);">
-        <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="rumdl-tooltip-warning" data-index="${index}">
+        <div class="rumdl-tooltip-header">
           ${hasFix ? `
-            <button class="rumdl-tooltip-fix" data-index="${index}" style="
-              padding: 2px 6px;
-              font-size: 11px;
-              font-weight: 500;
-              color: #fff;
-              background: var(--color-success-emphasis, #1f883d);
-              border: none;
-              border-radius: 4px;
-              cursor: pointer;
-              flex-shrink: 0;
-            ">Fix</button>
+            <button type="button" class="rumdl-btn rumdl-tooltip-fix" data-index="${index}" aria-label="Fix ${escapedRuleAttribute}">Fix</button>
           ` : ''}
-          <span style="
-            color: ${severityColor};
-            font-weight: 600;
-            font-family: ui-monospace, SFMono-Regular, monospace;
-            font-size: 11px;
-          ">${escapedRuleName}</span>
+          <span class="rumdl-tooltip-rule ${severityClass}">${escapedRuleName}</span>
         </div>
-        <div style="color: var(--color-fg-default, #1f2328); margin-top: 2px;">${escapeHtml(warning.message)}</div>
+        <div class="rumdl-tooltip-message">${escapeHtml(warning.message)}</div>
       </div>
     `;
   }).join('');
 
   tip.innerHTML = warningsHtml;
-  tip.style.background = 'var(--color-canvas-default, #ffffff)';
-  tip.style.color = 'var(--color-fg-default, #1f2328)';
-  tip.style.border = '1px solid var(--color-border-default, #d0d7de)';
-
   // Add fix button handlers
   if (onFix) {
     tip.querySelectorAll('.rumdl-tooltip-fix').forEach(btn => {
@@ -192,14 +137,6 @@ export function showWarningsTooltip(
         hideTooltip();
       });
     });
-  }
-
-  // Remove last border
-  const lastDiv = tip.querySelector('.rumdl-tooltip-warning:last-child') as HTMLElement;
-  if (lastDiv) {
-    lastDiv.style.marginBottom = '0';
-    lastDiv.style.paddingBottom = '0';
-    lastDiv.style.borderBottom = 'none';
   }
 
   // Position tooltip
@@ -217,10 +154,10 @@ export function showWarningsTooltip(
   requestAnimationFrame(() => {
     const tipRect = tip.getBoundingClientRect();
     if (left + tipRect.width > viewportWidth - 10) {
-      tip.style.left = `${x - tipRect.width - 12}px`;
+      tip.style.left = `${Math.max(10, x - tipRect.width - 12)}px`;
     }
     if (top + tipRect.height > viewportHeight - 10) {
-      tip.style.top = `${y - tipRect.height + 8}px`;
+      tip.style.top = `${Math.max(10, y - tipRect.height + 8)}px`;
     }
   });
 }

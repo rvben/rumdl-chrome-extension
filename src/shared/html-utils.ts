@@ -9,3 +9,13 @@ export function escapeHtml(text: string): string {
   div.textContent = text;
   return div.innerHTML;
 }
+
+/**
+ * Escape untrusted text for a quoted HTML attribute.
+ * Prefer setAttribute() when constructing DOM directly.
+ */
+export function escapeHtmlAttribute(text: string): string {
+  return escapeHtml(text)
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}

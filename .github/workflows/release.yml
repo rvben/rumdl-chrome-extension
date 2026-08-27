@@ -26,6 +26,12 @@ jobs:
       - name: Full check
         run: make check
 
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Browser tests
+        run: make test-e2e
+
       - name: Package
         run: make package
 

@@ -30,8 +30,8 @@ test-unit:
 test-coverage:
 	npm run test:coverage
 
-# Run E2E tests (requires puppeteer)
-test-e2e: build
+# Run E2E tests (requires Playwright Chromium)
+test-e2e:
 	npm run test:e2e
 
 # Run selector smoke tests against real websites (requires playwright)
