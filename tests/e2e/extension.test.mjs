@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startServer } from './server.mjs';
@@ -28,21 +28,34 @@ let extensionId;
 
 async function prepareTestExtension() {
   extensionPath = await mkdtemp(join(tmpdir(), 'rumdl-extension-e2e-'));
-  await Promise.all([
-    cp(join(PROJECT_PATH, 'dist'), join(extensionPath, 'dist'), { recursive: true }),
-    cp(join(PROJECT_PATH, 'icons'), join(extensionPath, 'icons'), { recursive: true }),
-    cp(join(PROJECT_PATH, 'popup'), join(extensionPath, 'popup'), { recursive: true }),
-  ]);
+  const storeSource = process.env.E2E_EXTENSION_SOURCE
+    ? resolve(process.env.E2E_EXTENSION_SOURCE)
+    : null;
 
-  const manifest = JSON.parse(await readFile(join(PROJECT_PATH, 'manifest.json'), 'utf8'));
+  if (storeSource) {
+    await cp(storeSource, extensionPath, { recursive: true });
+  } else {
+    await Promise.all([
+      cp(join(PROJECT_PATH, 'dist'), join(extensionPath, 'dist'), { recursive: true }),
+      cp(join(PROJECT_PATH, 'icons'), join(extensionPath, 'icons'), { recursive: true }),
+      cp(join(PROJECT_PATH, 'popup'), join(extensionPath, 'popup'), { recursive: true }),
+      cp(join(PROJECT_PATH, 'manifest.json'), join(extensionPath, 'manifest.json')),
+    ]);
+  }
+
+  const manifestPath = join(extensionPath, 'manifest.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const testOrigin = 'http://127.0.0.1/*';
-  manifest.host_permissions = [...manifest.host_permissions, testOrigin];
+  manifest.host_permissions = [...new Set([...(manifest.host_permissions || []), testOrigin])];
   manifest.content_scripts[0].matches = [testOrigin];
   manifest.web_accessible_resources[0].matches = [testOrigin];
   await writeFile(
-    join(extensionPath, 'manifest.json'),
+    manifestPath,
     `${JSON.stringify(manifest, null, 2)}\n`
   );
+  const sourceLabel = process.env.E2E_EXTENSION_LABEL
+    || (storeSource ? 'provided package' : 'local build');
+  console.log(`Testing extension v${manifest.version} from ${sourceLabel}`);
 }
 
 async function setup() {

@@ -16,6 +16,8 @@ required repository variables are present.
 - Submit with automatic publishing after approval and a 100% rollout.
 - Fail instead of ignoring Web Store validation warnings.
 - Check daily for rejection, policy warnings, or takedown.
+- Download the published CRX from Google's update service and run the full
+  real-extension browser suite once its version matches the repository.
 
 Store listing, screenshot, privacy, permission, and visibility changes still
 require the Chrome Web Store Developer Dashboard.
@@ -112,7 +114,11 @@ tagged GitHub Release succeeds.
 4. Confirm no credential or access token appears in the logs.
 
 The daily monitor fails on `REJECTED`, a policy warning, or a takedown so normal
-GitHub Actions failure notifications can surface the problem.
+GitHub Actions failure notifications can surface the problem. While a release
+is under review, it reports the published version and skips package tests. As
+soon as the repository version is published, it downloads that exact store
+package, verifies its manifest version, and runs the real-extension browser
+suite against its code.
 
 ## Release flow
 

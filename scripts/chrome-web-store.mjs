@@ -218,6 +218,12 @@ async function writeGitHubSummary(lines, summaryPath = process.env.GITHUB_STEP_S
   await appendFile(summaryPath, `${lines.join('\n')}\n`, 'utf8');
 }
 
+async function writeGitHubOutput(values, outputPath = process.env.GITHUB_OUTPUT) {
+  if (!outputPath) return;
+  const lines = Object.entries(values).map(([name, value]) => `${name}=${value ?? ''}`);
+  await appendFile(outputPath, `${lines.join('\n')}\n`, 'utf8');
+}
+
 async function loadVersions() {
   const [manifest, packageJson] = await Promise.all([
     readFile('manifest.json', 'utf8').then(JSON.parse),
@@ -252,11 +258,19 @@ export async function runCli(args, environment = process.env) {
     console.log(JSON.stringify(status, null, 2));
     const submittedState = status?.submittedItemRevisionStatus?.state || 'none';
     const publishedState = status?.publishedItemRevisionStatus?.state || 'none';
+    const submittedVersion = status?.submittedItemRevisionStatus?.distributionChannels?.[0]?.crxVersion || '';
+    const publishedVersion = status?.publishedItemRevisionStatus?.distributionChannels?.[0]?.crxVersion || '';
+    await writeGitHubOutput({
+      submitted_state: submittedState,
+      submitted_version: submittedVersion,
+      published_state: publishedState,
+      published_version: publishedVersion,
+    });
     await writeGitHubSummary([
       '## Chrome Web Store status',
       '',
-      `- Submitted revision: \`${submittedState}\``,
-      `- Published revision: \`${publishedState}\``,
+      `- Submitted revision: \`${submittedState}\` (${submittedVersion || 'no version'})`,
+      `- Published revision: \`${publishedState}\` (${publishedVersion || 'no version'})`,
       `- Policy warning: \`${Boolean(status?.warned)}\``,
       `- Taken down: \`${Boolean(status?.takenDown)}\``,
     ]);
