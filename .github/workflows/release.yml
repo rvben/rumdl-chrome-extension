@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: make install
 
+      - name: Verify release version
+        run: node scripts/chrome-web-store.mjs check-version --tag "$GITHUB_REF_NAME"
+
       - name: Full check
         run: make check
 
@@ -35,8 +38,64 @@ jobs:
       - name: Package
         run: make package
 
+      - name: Preserve extension package for publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: rumdl-extension-${{ github.ref_name }}
+          path: rumdl-extension.zip
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: rumdl-extension.zip
           generate_release_notes: true
+
+  publish-chrome:
+    name: Publish to Chrome Web Store
+    needs: release
+    if: >-
+      ${{
+        vars.CWS_EXTENSION_ID != '' &&
+        vars.CWS_PUBLISHER_ID != '' &&
+        vars.GCP_SERVICE_ACCOUNT != '' &&
+        vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+      }}
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download verified extension package
+        uses: actions/download-artifact@v4
+        with:
+          name: rumdl-extension-${{ github.ref_name }}
+
+      - name: Authenticate to Google Cloud
+        id: google-auth
+        # google-github-actions/auth v3.0.0
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 900s
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+
+      - name: Upload and submit for review
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        run: >-
+          node scripts/chrome-web-store.mjs release
+          --zip rumdl-extension.zip
+          --type default
+          --percentage 100

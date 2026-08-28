@@ -161,6 +161,11 @@ existing screenshot baseline while capturing a new comparison set, run:
 SCREENSHOT_PREFIX=after- npm run screenshots
 ```
 
+Tagged releases can also upload and submit the verified package to the Chrome
+Web Store using short-lived GitHub OIDC credentials. See the
+[Chrome Web Store automation guide](store/cws-automation.md) for the one-time
+Google Cloud and repository configuration.
+
 ### WASM Module
 
 The WASM module is provided by the [`rumdl-wasm`](https://www.npmjs.com/package/rumdl-wasm) npm package.

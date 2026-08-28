@@ -1,0 +1,43 @@
+name: Chrome Web Store Status
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 7 * * *'
+
+jobs:
+  status:
+    if: >-
+      ${{
+        vars.CWS_EXTENSION_ID != '' &&
+        vars.CWS_PUBLISHER_ID != '' &&
+        vars.GCP_SERVICE_ACCOUNT != '' &&
+        vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+      }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: google-auth
+        # google-github-actions/auth v3.0.0
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 300s
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore.readonly
+          create_credentials_file: false
+
+      - name: Check review and policy status
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        run: node scripts/chrome-web-store.mjs status --fail-on-problem true
