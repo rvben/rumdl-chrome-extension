@@ -14,6 +14,7 @@
     "test:e2e": "npm run build && node tests/e2e/extension.test.mjs",
     "test:smoke": "node tests/smoke/selector-check.mjs",
     "screenshots": "npm run build && node scripts/screenshots.mjs",
+    "screenshots:store": "node scripts/store-listing-screenshots.mjs",
     "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ -x '*.svg'"
   },
   "dependencies": {

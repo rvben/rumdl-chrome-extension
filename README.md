@@ -145,6 +145,7 @@ make lint           # TypeScript type checking
 make test-unit      # Run the unit test suite
 make test-e2e        # Build and test the loaded extension in Chromium
 npm run screenshots  # Capture real-extension popup and editor UI states
+npm run screenshots:store # Render 1280x800 Chrome Web Store listing images
 make test           # Lint + unit tests
 make check          # Lint + test + build
 make package        # Create rumdl-extension.zip

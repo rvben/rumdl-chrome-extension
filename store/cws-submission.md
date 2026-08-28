@@ -67,12 +67,18 @@ English
 
 ### Screenshots
 
-Upload both current-version screenshots from `store/screenshots/` in this order:
+After v1.0.1 is approved, upload the five current-version screenshots from
+`store/listing-screenshots/` in this order:
 
-1. `after-01-warning-panel.png` (1280x800)
-2. `after-02-gutter-dots.png` (1280x800)
+1. `01-feedback-before-review.png` (1280x800)
+2. `02-issues-beside-editor.png` (1280x800)
+3. `03-project-rules.png` (1280x800)
+4. `04-rule-control.png` (1280x800)
+5. `05-keyboard-workflow.png` (1280x800)
 
-Do not upload the 380x560 popup captures; Chrome Web Store screenshots must be 1280x800 or 640x400.
+The source captures in `store/screenshots/` are visual QA inputs and should not
+be uploaded directly. Regenerate both layers with `SCREENSHOT_PREFIX=after-
+npm run screenshots` followed by `npm run screenshots:store`.
 
 ---
 
@@ -147,10 +153,10 @@ support@am8.nl
 ## Submission Checklist
 
 - [x] v1.0.1 ZIP built and GitHub release published
-- [x] Typecheck, 235 unit tests, and 7 real-extension tests passed
+- [x] Typecheck, 248 unit tests, and 7 real-extension tests passed
 - [x] Real signed-in GitHub editor smoke test completed; draft cleared
 - [x] Package manifest and contents verified
-- [x] Current-version 1280x800 screenshots selected
+- [x] Five current-version 1280x800 listing screenshots prepared locally
 - [x] Listing and privacy language reconciled with `chrome.storage.sync`
 - [x] Developer Dashboard authentication completed
 - [x] Package uploaded

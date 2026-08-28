@@ -135,6 +135,13 @@ async function captureScreenshots() {
     fullPage: true,
   });
 
+  await popupPage.getByRole('tab', { name: 'Advanced' }).click();
+  await popupPage.locator('#tab-advanced').waitFor({ state: 'visible' });
+  await popupPage.screenshot({
+    path: screenshotPath('05-popup-advanced.png'),
+    fullPage: true,
+  });
+
   console.log(`Captured visual review screenshots in ${SCREENSHOTS_DIR}`);
 }
 
