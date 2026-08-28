@@ -1,6 +1,6 @@
 {
   "name": "rumdl-chrome-extension",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Real-time Markdown linting with auto-fix for GitHub and GitLab",
   "type": "module",
   "scripts": {

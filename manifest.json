@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "rumdl — Markdown Linter",
   "short_name": "rumdl",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Real-time Markdown linting with auto-fix for GitHub and GitLab.",
   "homepage_url": "https://github.com/rvben/rumdl-chrome-extension",
   "minimum_chrome_version": "121",
