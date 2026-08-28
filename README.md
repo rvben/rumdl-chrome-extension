@@ -23,7 +23,7 @@ A Chrome extension that provides real-time Markdown linting for GitHub and GitLa
 
 ### From Chrome Web Store
 
-[Install from Chrome Web Store](https://chrome.google.com/webstore) *(Coming soon)*
+[Install from Chrome Web Store](https://chromewebstore.google.com/detail/rumdl-%E2%80%94-markdown-linter/inepnnojhghmcjcnalkgailijhlaejce)
 
 ### From Source (Development)
 

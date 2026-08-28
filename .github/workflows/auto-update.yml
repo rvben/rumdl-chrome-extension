@@ -20,7 +20,7 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -38,7 +38,7 @@ jobs:
           else
             RUMDL_VERSION=$(npm view rumdl-wasm version)
           fi
-          echo "rumdl_version=$RUMDL_VERSION" >> $GITHUB_OUTPUT
+          echo "rumdl_version=$RUMDL_VERSION" >> "$GITHUB_OUTPUT"
           echo "Updating to rumdl-wasm@$RUMDL_VERSION"
 
       - name: Check if update needed
@@ -49,10 +49,10 @@ jobs:
 
           if [ "$CURRENT" = "$NEW" ]; then
             echo "Already at version $NEW, skipping update"
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "Updating from $CURRENT to $NEW"
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update rumdl-wasm
