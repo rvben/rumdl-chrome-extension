@@ -67,6 +67,17 @@ export interface ServiceWorkerStatus {
   version: string | null;
 }
 
+// Status reported by a content script to the extension popup.
+export interface PageStatus {
+  editorCount: number;
+  enabled: boolean;
+  serviceWorkerHealthy: boolean;
+  site: 'github' | 'gitlab' | 'unknown';
+}
+
+export type PageStatusRequest = { type: 'GET_PAGE_STATUS' };
+export type PageStatusResponse = { type: 'PAGE_STATUS_RESULT'; status: PageStatus };
+
 // Message types for communication between content script and service worker
 export type MessageType =
   | { type: 'LINT'; content: string; config: LinterConfig }

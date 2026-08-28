@@ -13,6 +13,7 @@ A Chrome extension that provides real-time Markdown linting for GitHub and GitLa
 - **Multiple markdown flavors**: Standard, MkDocs, MDX, Quarto, and Obsidian
 - **Reflow support**: Automatically rewrap long lines to configured width
 - **Theme support**: Automatic dark/light mode support matching site themes
+- **Page readiness**: The popup shows whether an editor is detected or a tab needs attention
 
 ## Requirements
 

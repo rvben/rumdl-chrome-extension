@@ -11,6 +11,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_PATH = join(__dirname, '..');
 const configuredScreenshotsDir = process.env.SCREENSHOTS_DIR;
 const screenshotPrefix = process.env.SCREENSHOT_PREFIX ?? '';
+const captureReadinessVariants = process.env.SCREENSHOT_READINESS_VARIANTS === '1';
+const screenshotColorScheme = process.env.SCREENSHOT_COLOR_SCHEME === 'light' ? 'light' : 'dark';
 const SCREENSHOTS_DIR = configuredScreenshotsDir
   ? (isAbsolute(configuredScreenshotsDir)
       ? configuredScreenshotsDir
@@ -85,7 +87,7 @@ async function captureScreenshots() {
     channel: 'chromium',
     headless: process.env.HEADED !== '1',
     viewport: { width: 1280, height: 800 },
-    colorScheme: 'dark',
+    colorScheme: screenshotColorScheme,
     args: [
       `--disable-extensions-except=${extensionPath}`,
       `--load-extension=${extensionPath}`,
@@ -121,12 +123,58 @@ async function captureScreenshots() {
   const popupPage = await context.newPage();
   await popupPage.setViewportSize({ width: 380, height: 560 });
   await popupPage.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+  await serviceWorker.evaluate(async editorUrl => {
+    const tabs = await chrome.tabs.query({});
+    const editorTab = tabs.find(tab => tab.url === editorUrl);
+    if (!editorTab?.id) throw new Error('Could not activate the visual-review editor tab');
+    await chrome.tabs.update(editorTab.id, { active: true });
+  }, editorPage.url());
+  await popupPage.reload();
   await popupPage.locator('#settingsShell').waitFor({ state: 'visible' });
   await popupPage.locator('#rulesList[aria-busy="false"]').waitFor({ state: 'attached' });
+  // The visual fixture runs on 127.0.0.1, while production readiness is
+  // intentionally limited to github.com and gitlab.com. Render the equivalent
+  // live-editor state after the real content-script fixture is confirmed above.
+  await popupPage.evaluate(() => {
+    document.querySelector('#pageReadiness').dataset.tone = 'ready';
+    document.querySelector('#pageReadinessTitle').textContent = 'Ready on this page';
+    document.querySelector('#pageReadinessDescription').textContent = '1 Markdown editor detected.';
+  });
+  await popupPage.locator('#pageReadiness[data-tone="ready"]').waitFor({ state: 'attached' });
   await popupPage.screenshot({
     path: screenshotPath('03-popup-general.png'),
     fullPage: true,
   });
+
+  if (captureReadinessVariants) {
+    const variants = [
+      ['ready', 'Ready on this page', '1 Markdown editor detected.'],
+      ['idle', 'Ready when the editor opens', 'Open a Markdown editor on this page.'],
+      ['attention', 'Reload this tab to activate rumdl', 'The page was open before rumdl loaded.'],
+      ['paused', 'rumdl is paused', 'Turn it on to lint Markdown editors.'],
+      ['error', 'Linting is temporarily unavailable', 'Type in the editor to retry, or reload the tab.'],
+    ];
+    for (const [tone, title, description] of variants) {
+      await popupPage.evaluate(({ stateTone, stateTitle, stateDescription }) => {
+        document.querySelector('#pageReadiness').dataset.tone = stateTone;
+        document.querySelector('#pageReadinessTitle').textContent = stateTitle;
+        document.querySelector('#pageReadinessDescription').textContent = stateDescription;
+        document.querySelector('#enabled').checked = stateTone !== 'paused';
+      }, { stateTone: tone, stateTitle: title, stateDescription: description });
+      await popupPage.waitForTimeout(200);
+      await popupPage.screenshot({
+        path: screenshotPath(`readiness-${tone}.png`),
+        fullPage: true,
+      });
+    }
+    await popupPage.evaluate(() => {
+      document.querySelector('#pageReadiness').dataset.tone = 'ready';
+      document.querySelector('#pageReadinessTitle').textContent = 'Ready on this page';
+      document.querySelector('#pageReadinessDescription').textContent = '1 Markdown editor detected.';
+      document.querySelector('#enabled').checked = true;
+    });
+    await popupPage.waitForTimeout(200);
+  }
 
   await popupPage.getByRole('tab', { name: 'Rules' }).click();
   await popupPage.locator('.rule-item').first().waitFor();

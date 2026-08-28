@@ -12,7 +12,12 @@ import { toLinterConfig } from '../shared/config-utils.js';
 import { validateAndMergeConfig } from '../shared/storage.js';
 import { getCurrentSite } from '../shared/site-utils.js';
 import { setTextareaValue, setTextareaValueIfUnchanged } from './textarea-utils.js';
-import type { LintWarning, RumdlConfig } from '../shared/types.js';
+import type {
+  LintWarning,
+  PageStatusRequest,
+  PageStatusResponse,
+  RumdlConfig,
+} from '../shared/types.js';
 
 // Debug mode - set to false for production
 const DEBUG = false;
@@ -63,6 +68,21 @@ const SERVICE_WORKER_CHECK_INTERVAL = 30000; // 30 seconds
 // Keep-alive: ping the service worker every 20s to prevent Chrome from
 // terminating it while editors are active (MV3 kills idle workers after ~30s)
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+chrome.runtime.onMessage.addListener((message: PageStatusRequest, _sender, sendResponse) => {
+  if (message?.type !== 'GET_PAGE_STATUS') return;
+
+  const response: PageStatusResponse = {
+    type: 'PAGE_STATUS_RESULT',
+    status: {
+      editorCount: editorStates.size,
+      enabled: Boolean(config?.enabled && lintingActive),
+      serviceWorkerHealthy,
+      site: getCurrentSite(),
+    },
+  };
+  sendResponse(response);
+});
 
 /**
  * Start keep-alive pings if editors are active
@@ -538,8 +558,16 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
     log(`Lint complete: ${warnings.length} warning(s) in ${lintTimeMs.toFixed(1)}ms`);
   } catch (error) {
     logError('Lint failed:', error);
-    // Mark service worker as unhealthy to trigger recovery check on next lint
     serviceWorkerHealthy = false;
+    lastServiceWorkerCheck = 0;
+
+    if (!(
+      editorStates.get(textarea) === state
+      && textarea.value === content
+      && config === requestConfig
+      && requestConfig.enabled
+    )) return;
+
     state.panel.setError('Linting failed. Type to retry.');
     updateButton(state.button, state.warnings.length, state.lintTime, 'error');
     showErrorNotification('Linting failed', 'Type to retry, or reload the page if the problem continues.');

@@ -9,6 +9,7 @@ import {
   updateRuleSelection,
   validateConfig,
 } from './config-utils.js';
+import { loadPageReadiness } from './page-readiness.js';
 
 const STORAGE_KEY = 'rumdl_config';
 
@@ -23,6 +24,9 @@ const elements = {
   saveStatus: document.getElementById('saveStatus'),
   retrySaveBtn: document.getElementById('retrySaveBtn'),
   enabled: document.getElementById('enabled'),
+  pageReadiness: document.getElementById('pageReadiness'),
+  pageReadinessTitle: document.getElementById('pageReadinessTitle'),
+  pageReadinessDescription: document.getElementById('pageReadinessDescription'),
   flavor: document.getElementById('flavor'),
   lineLength: document.getElementById('lineLength'),
   lineLengthError: document.getElementById('lineLengthError'),
@@ -50,6 +54,16 @@ let saveQueue = Promise.resolve();
 let saveRequestId = 0;
 let failedSaveConfig = null;
 let listenersReady = false;
+
+function renderPageReadiness(readiness) {
+  elements.pageReadiness.dataset.tone = readiness.tone;
+  elements.pageReadinessTitle.textContent = readiness.title;
+  elements.pageReadinessDescription.textContent = readiness.description;
+}
+
+async function refreshPageReadiness(enabled = currentConfig.enabled) {
+  renderPageReadiness(await loadPageReadiness({ enabled }));
+}
 
 async function loadConfig() {
   const result = await chrome.storage.sync.get(STORAGE_KEY);
@@ -289,6 +303,7 @@ async function importConfig(file) {
 
     const importedConfig = validateConfig(parsed);
     updateUI(importedConfig);
+    void refreshPageReadiness(importedConfig.enabled);
     const savedConfig = await requestSave(importedConfig, 'Settings imported');
     if (!savedConfig) return;
   } catch (error) {
@@ -344,7 +359,11 @@ async function saveFromUI() {
     setSaveStatus('Line length must be from 40 to 500.', 'error');
     return;
   }
-  await requestSave(getConfigFromUI());
+  const config = getConfigFromUI();
+  if (config.enabled !== currentConfig.enabled) {
+    void refreshPageReadiness(config.enabled);
+  }
+  await requestSave(config);
 }
 
 function setupListeners() {
@@ -403,6 +422,7 @@ function setupListeners() {
     if (!confirm('Reset all rumdl settings to their defaults?')) return;
     const defaults = validateConfig(DEFAULT_CONFIG);
     updateUI(defaults);
+    void refreshPageReadiness(defaults.enabled);
     await requestSave(defaults, 'Settings reset');
   });
 
@@ -436,6 +456,7 @@ async function initializeSettings() {
     elements.settingsShell.hidden = false;
     elements.mainContent.setAttribute('aria-busy', 'false');
     setSaveStatus('Ready', 'idle');
+    void refreshPageReadiness(config.enabled);
     void loadRules();
   } catch (error) {
     console.error('Failed to load settings:', error);

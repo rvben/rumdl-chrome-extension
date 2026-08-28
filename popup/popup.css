@@ -15,6 +15,7 @@
   --danger-hover: #a40e26;
   --danger-soft: #ffebe9;
   --success: #1a7f37;
+  --attention: #9a6700;
   --error: #cf222e;
   --focus: #0969da;
   --radius-sm: 6px;
@@ -40,6 +41,7 @@
     --danger-hover: #ffa198;
     --danger-soft: #3d1518;
     --success: #56d364;
+    --attention: #d29922;
     --error: #ff7b72;
     --focus: #58a6ff;
   }
@@ -221,6 +223,61 @@ summary:focus-visible {
 
 .toggle:checked::before {
   transform: translateX(18px);
+}
+
+.page-readiness {
+  display: grid;
+  align-items: start;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 9px;
+  padding: 10px 12px 0;
+}
+
+.readiness-indicator {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.readiness-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.readiness-copy strong {
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.readiness-copy span {
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.page-readiness[data-tone="ready"] .readiness-indicator {
+  background: var(--success);
+}
+
+.page-readiness[data-tone="attention"] .readiness-indicator {
+  background: var(--attention);
+}
+
+.page-readiness[data-tone="error"] .readiness-indicator {
+  background: var(--error);
+}
+
+.page-readiness[data-tone="loading"] .readiness-indicator {
+  background: var(--accent);
+  animation: readiness-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes readiness-pulse {
+  50% { opacity: 0.35; }
 }
 
 .tabs {
