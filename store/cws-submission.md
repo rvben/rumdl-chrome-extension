@@ -1,5 +1,7 @@
 # Chrome Web Store Submission — v1.0.1
 
+Submission status: **Submitted for review on August 28, 2026** (confirmed by the publisher).
+
 ## Upload
 
 File: `rumdl-extension.zip` (approximately 1.8MB)
@@ -150,7 +152,7 @@ support@am8.nl
 - [x] Package manifest and contents verified
 - [x] Current-version 1280x800 screenshots selected
 - [x] Listing and privacy language reconciled with `chrome.storage.sync`
-- [ ] Developer Dashboard authentication completed
-- [ ] Package uploaded
-- [ ] Store Listing, Privacy, and Distribution tabs saved
-- [ ] Submitted for review
+- [x] Developer Dashboard authentication completed
+- [x] Package uploaded
+- [x] Store Listing, Privacy, and Distribution tabs saved
+- [x] Submitted for review on August 28, 2026
