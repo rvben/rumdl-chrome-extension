@@ -6,6 +6,7 @@ import { KeyboardShortcuts } from './keyboard-shortcuts.js';
 
 let tooltip: HTMLElement | null = null;
 let hideTimeout: number | null = null;
+let focusOrigin: HTMLElement | null = null;
 
 /**
  * Create the tooltip element if it doesn't exist
@@ -16,12 +17,25 @@ function ensureTooltip(): HTMLElement {
   tooltip = document.createElement('div');
   tooltip.className = 'rumdl-tooltip';
   tooltip.setAttribute('role', 'tooltip');
+  tooltip.inert = true;
   tooltip.style.cssText = `
     position: fixed;
     pointer-events: none;
     opacity: 0;
     transform: translateY(4px);
   `;
+
+  tooltip.addEventListener('mouseenter', () => {
+    if (hideTimeout !== null) clearTimeout(hideTimeout);
+    hideTimeout = null;
+    if (!tooltip?.inert) tooltip!.style.pointerEvents = 'auto';
+  });
+  tooltip.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      hideTooltip();
+    }
+  });
 
   // Hide tooltip when mouse leaves it
   tooltip.addEventListener('mouseleave', () => {
@@ -42,6 +56,9 @@ export function showTooltip(warning: LintWarning, x: number, y: number): void {
   }
 
   const tip = ensureTooltip();
+  tip.inert = false;
+  tip.setAttribute('role', 'tooltip');
+  tip.removeAttribute('aria-label');
   tip.style.pointerEvents = 'none';
 
   const escapedRuleName = escapeHtml(warning.rule_name || 'rumdl');
@@ -102,6 +119,12 @@ export function showWarningsTooltip(
 
   const tip = ensureTooltip();
 
+  tip.inert = false;
+  tip.setAttribute('role', onFix ? 'dialog' : 'tooltip');
+  if (onFix) tip.setAttribute('aria-label', 'Lint issues and quick fixes');
+  else tip.removeAttribute('aria-label');
+  focusOrigin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
   // Make tooltip interactive if we have fix callbacks
   tip.style.pointerEvents = onFix ? 'auto' : 'none';
 
@@ -143,7 +166,7 @@ export function showWarningsTooltip(
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
   let left = x + 12;
-  let top = y - 8;
+  let top = Math.max(10, y - 8);
 
   tip.style.left = `${left}px`;
   tip.style.top = `${top}px`;
@@ -152,6 +175,7 @@ export function showWarningsTooltip(
 
   // Adjust after rendering if needed
   requestAnimationFrame(() => {
+    if (tip.inert || !tip.isConnected) return;
     const tipRect = tip.getBoundingClientRect();
     if (left + tipRect.width > viewportWidth - 10) {
       tip.style.left = `${Math.max(10, x - tipRect.width - 12)}px`;
@@ -168,6 +192,9 @@ export function showWarningsTooltip(
 export function hideTooltip(): void {
   if (!tooltip) return;
 
+  if (hideTimeout !== null) clearTimeout(hideTimeout);
+  if (tooltip.contains(document.activeElement) && focusOrigin?.isConnected) focusOrigin.focus();
+  tooltip.inert = true;
   // Immediately disable pointer events to prevent blocking clicks
   tooltip.style.pointerEvents = 'none';
 
@@ -191,5 +218,6 @@ export function destroyTooltip(): void {
   if (tooltip) {
     tooltip.remove();
     tooltip = null;
+    focusOrigin = null;
   }
 }

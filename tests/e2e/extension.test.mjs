@@ -66,6 +66,7 @@ async function setup() {
 
   context = await chromium.launchPersistentContext(join(extensionPath, 'profile'), {
     channel: 'chromium',
+    ...(process.env.E2E_CHROMIUM_EXECUTABLE ? { executablePath: process.env.E2E_CHROMIUM_EXECUTABLE } : {}),
     headless: process.env.HEADED !== '1',
     args: [
       `--disable-extensions-except=${extensionPath}`,
@@ -211,6 +212,12 @@ async function testPopupKeyboardAndRules() {
   const generalTab = page.getByRole('tab', { name: 'General' });
   const rulesTab = page.getByRole('tab', { name: 'Rules' });
   await generalTab.waitFor();
+  await page.locator('#settingsShell').waitFor({ state: 'visible' });
+  await page.locator('.brand-logo').evaluate(img => img.decode());
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.locator('.brand-logo').evaluate(img => img.decode());
+  assert.match(await page.locator('.brand-logo').evaluate(img => img.currentSrc), /logo-dark\.svg$/);
+  await page.emulateMedia({ colorScheme: 'light' });
   await generalTab.focus();
   await generalTab.press('ArrowRight');
   assert.equal(await rulesTab.getAttribute('aria-selected'), 'true');

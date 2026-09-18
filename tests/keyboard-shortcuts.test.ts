@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KeyboardShortcuts } from '../src/content/keyboard-shortcuts';
 
 const originalPlatform = Object.getOwnPropertyDescriptor(navigator, 'platform');
@@ -28,5 +28,27 @@ describe('KeyboardShortcuts display labels', () => {
 
     expect(KeyboardShortcuts.getShortcutKeys('format')).toBe('Ctrl+Shift+F');
     expect(KeyboardShortcuts.getShortcutKeys('nextWarning')).toBe('Ctrl+Alt+]');
+  });
+});
+
+
+describe('KeyboardShortcuts composition', () => {
+  it('leaves IME composition and already handled keys alone', () => {
+    const textarea = document.createElement('textarea');
+    document.body.append(textarea);
+    textarea.focus();
+    Object.defineProperty(navigator, 'platform', { value: 'Linux', configurable: true });
+    const shortcuts = new KeyboardShortcuts();
+    const handler = vi.fn();
+    shortcuts.register(textarea, handler);
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: '.', ctrlKey: true, isComposing: true, cancelable: true }));
+    const handled = new KeyboardEvent('keydown', { key: '.', ctrlKey: true, cancelable: true });
+    handled.preventDefault();
+    textarea.dispatchEvent(handled);
+    expect(handler).not.toHaveBeenCalled();
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: '.', ctrlKey: true, cancelable: true }));
+    expect(handler).toHaveBeenCalledWith('fixCurrent', textarea);
+    shortcuts.unregisterAll();
+    textarea.remove();
   });
 });

@@ -100,7 +100,7 @@ export class KeyboardShortcuts {
 
     const keydownListener = (e: KeyboardEvent) => {
       // Only handle if the textarea is focused
-      if (document.activeElement !== textarea) return;
+      if (e.isComposing || e.defaultPrevented || !textarea.matches(':focus')) return;
 
       const isMac = isMacOS();
       const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;

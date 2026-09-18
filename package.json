@@ -15,7 +15,7 @@
     "test:smoke": "node tests/smoke/selector-check.mjs",
     "screenshots": "npm run build && node scripts/screenshots.mjs",
     "screenshots:store": "node scripts/store-listing-screenshots.mjs",
-    "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ -x '*.svg'"
+    "package": "npm run build && rm -f rumdl-extension.zip && zip -r rumdl-extension.zip manifest.json dist/ icons/ popup/ -x 'icons/*.svg' && node scripts/check-package.mjs"
   },
   "dependencies": {
     "rumdl-wasm": "0.2.74"

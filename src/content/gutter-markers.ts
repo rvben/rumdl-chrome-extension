@@ -1,173 +1,189 @@
-// Gutter Markers - circles indicating lines with issues
-// Uses inline styles instead of CSS classes for Shadow DOM compatibility
-
+// IDE-style gutter: logical line numbers with lint markers in the preceding column.
 import type { LintWarning } from '../shared/types.js';
 import { showWarningsTooltip, hideTooltip } from './tooltip.js';
 
-const DEBUG = false;
-function log(...args: unknown[]): void {
-  if (DEBUG) console.log('[rumdl:gutter]', ...args);
-}
-
 interface GutterState {
   container: HTMLElement;
+  parent: HTMLElement;
+  markerLayer: HTMLElement;
+  numberLayer: HTMLElement;
+  warningLayer: HTMLElement;
+  cachedContent: string | null;
+  cachedWidth: number;
+  cachedStyle: string;
+  cachedPositions: number[];
+  numberedPositions: number[];
   resizeObserver: ResizeObserver;
   scrollHandler: () => void;
+  inputHandler: () => void;
+  syncDimensions: () => void;
+  inputFrame: number | null;
   lineHeight: number;
   paddingTop: number;
+  originalPadding: string;
+  paddingPriority: string;
+  originalBoxSizing: string;
+  boxSizingPriority: string;
+  warnings: LintWarning[];
+  onFix?: (warning: LintWarning) => void;
+  source: string;
+  width: number;
 }
 
+const parentPositions = new WeakMap<HTMLElement, { original: string | null; users: number }>();
 const gutterStates = new Map<HTMLTextAreaElement, GutterState>();
 
 export class GutterMarkers {
-  /**
-   * Create a gutter container for a textarea
-   */
   createGutter(textarea: HTMLTextAreaElement): HTMLElement {
     const existing = gutterStates.get(textarea);
-    if (existing) {
-      return existing.container;
-    }
-
+    if (existing) return existing.container;
     const container = document.createElement('div');
     container.className = 'rumdl-gutter';
     container.setAttribute('role', 'group');
-    container.setAttribute('aria-label', 'rumdl lint markers');
-
+    container.setAttribute('aria-label', 'rumdl line numbers and lint markers');
+    const markerLayer = document.createElement('div');
+    markerLayer.style.cssText = 'position: absolute; inset: 0; pointer-events: none;';
+    const numberLayer = document.createElement('div');
+    const warningLayer = document.createElement('div');
+    markerLayer.append(numberLayer, warningLayer);
+    container.append(markerLayer);
     const parent = textarea.parentElement;
-    if (!parent) {
-      log('No parent element for gutter');
-      return container;
-    }
+    if (!parent) return container;
 
-    const parentPosition = getComputedStyle(parent).position;
-    if (parentPosition === 'static') {
-      parent.style.position = 'relative';
+    let parentPosition = parentPositions.get(parent);
+    if (!parentPosition) {
+      parentPosition = { original: getComputedStyle(parent).position === 'static' ? parent.style.position : null, users: 0 };
+      parentPositions.set(parent, parentPosition);
     }
-
+    parentPosition.users++;
+    if (parentPosition.original !== null) parent.style.position = 'relative';
+    const initialStyle = getComputedStyle(textarea);
+    const basePadding = parseFloat(initialStyle.paddingLeft) || 0;
+    const originalPadding = textarea.style.getPropertyValue('padding-left');
+    const paddingPriority = textarea.style.getPropertyPriority('padding-left');
+    const originalBoxSizing = textarea.style.getPropertyValue('box-sizing');
+    const boxSizingPriority = textarea.style.getPropertyPriority('box-sizing');
+    // Keep a width:100% editor inside its parent when reserving the rail.
+    textarea.style.setProperty('box-sizing', 'border-box', 'important');
     parent.insertBefore(container, textarea);
 
-    const computedStyle = getComputedStyle(textarea);
-    const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
-    const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
-
-    // Position circles in left padding area, just before text starts
-    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 12;
-    const dotSize = 10;
-    const gap = 3;
-    const gutterLeft = Math.max(2, paddingLeft - dotSize - gap);
-
     const syncDimensions = () => {
-      // Keep container narrow and only in the gutter area to avoid blocking clicks
-      container.style.cssText = `
-        position: absolute;
-        top: ${textarea.offsetTop + paddingTop}px;
-        left: ${textarea.offsetLeft + gutterLeft}px;
-        width: ${dotSize}px;
-        height: ${textarea.offsetHeight - paddingTop * 2}px;
-        pointer-events: none;
-        overflow: visible;
-        z-index: 10;
-      `;
+      const state = gutterStates.get(textarea);
+      const digits = Math.max(2, String(textarea.value.split('\n').length).length);
+      const railWidth = 22 + digits * 8;
+      textarea.style.setProperty('padding-left', `${Math.max(basePadding, railWidth + 12)}px`, 'important');
+      const style = getComputedStyle(textarea);
+      const paddingTop = parseFloat(style.paddingTop) || 0;
+      if (state) state.paddingTop = paddingTop;
+      container.style.cssText = `position:absolute;top:${textarea.offsetTop + textarea.clientTop + paddingTop}px;left:${textarea.offsetLeft + textarea.clientLeft + 2}px;width:${railWidth}px;height:${Math.max(0, textarea.clientHeight - paddingTop - (parseFloat(style.paddingBottom) || 0))}px;pointer-events:none;overflow:hidden;z-index:10;font-family:${style.fontFamily};font-size:12px;`;
     };
-
-    syncDimensions();
-
-    const resizeObserver = new ResizeObserver(syncDimensions);
-    resizeObserver.observe(textarea);
-
     const scrollHandler = () => {
-      container.style.transform = `translateY(-${textarea.scrollTop}px)`;
+      markerLayer.style.transform = `translateY(-${textarea.scrollTop}px)`;
+      const state = gutterStates.get(textarea);
+      const style = getComputedStyle(textarea);
+      const visibleHeight = Math.max(0, textarea.clientHeight - (state?.paddingTop || 0) - (parseFloat(style.paddingBottom) || 0));
+      for (const marker of markerLayer.querySelectorAll<HTMLButtonElement>('.rumdl-gutter-marker')) {
+        const top = parseFloat(marker.style.top);
+        marker.hidden = top + 10 <= textarea.scrollTop || top >= textarea.scrollTop + visibleHeight;
+      }
     };
-    textarea.addEventListener('scroll', scrollHandler);
-
-    gutterStates.set(textarea, {
-      container,
-      resizeObserver,
-      scrollHandler,
-      lineHeight,
-      paddingTop
+    const inputHandler = () => {
+      const state = gutterStates.get(textarea);
+      if (!state || state.inputFrame !== null) return;
+      state.inputFrame = requestAnimationFrame(() => {
+        state.inputFrame = null;
+        // Never show lint markers against newly edited content until it is checked.
+        this.render(container, textarea, state.source === textarea.value ? state.warnings : [], state.onFix);
+      });
+    };
+    const resizeObserver = new ResizeObserver(() => {
+      const state = gutterStates.get(textarea);
+      if (!state) return;
+      syncDimensions();
+      if (state.width !== textarea.clientWidth) {
+        this.render(container, textarea, state.source === textarea.value ? state.warnings : [], state.onFix);
+      }
+      scrollHandler();
     });
-
+    gutterStates.set(textarea, {
+      container, parent, markerLayer, numberLayer, warningLayer, cachedContent: null, cachedWidth: -1, cachedStyle: '', cachedPositions: [], numberedPositions: [], resizeObserver, scrollHandler, inputHandler, syncDimensions,
+      inputFrame: null, lineHeight: parseFloat(initialStyle.lineHeight) || 20, paddingTop: 0,
+      originalPadding, paddingPriority, originalBoxSizing, boxSizingPriority,
+      warnings: [], source: textarea.value, width: -1,
+    });
+    textarea.addEventListener('scroll', scrollHandler);
+    textarea.addEventListener('input', inputHandler);
+    this.render(container, textarea, []);
+    resizeObserver.observe(textarea);
     return container;
   }
 
-  /**
-   * Remove gutter for a textarea
-   */
   removeGutter(textarea: HTMLTextAreaElement): void {
     const state = gutterStates.get(textarea);
     if (!state) return;
-
     state.resizeObserver.disconnect();
+    if (state.inputFrame !== null) cancelAnimationFrame(state.inputFrame);
     textarea.removeEventListener('scroll', state.scrollHandler);
+    textarea.removeEventListener('input', state.inputHandler);
     state.container.remove();
+    if (state.originalPadding) textarea.style.setProperty('padding-left', state.originalPadding, state.paddingPriority);
+    else textarea.style.removeProperty('padding-left');
+    if (state.originalBoxSizing) textarea.style.setProperty('box-sizing', state.originalBoxSizing, state.boxSizingPriority);
+    else textarea.style.removeProperty('box-sizing');
+    const parent = state.parent;
+    const parentPosition = parentPositions.get(parent);
+    if (parent && parentPosition && --parentPosition.users === 0) {
+      if (parentPosition.original !== null) parent.style.position = parentPosition.original;
+      parentPositions.delete(parent);
+    }
     gutterStates.delete(textarea);
   }
 
-  /**
-   * Calculate visual Y positions for each line, accounting for text wrapping
-   */
-  private calculateLinePositions(textarea: HTMLTextAreaElement, lineHeight: number): number[] {
-    const content = textarea.value;
-    const lines = content.split('\n');
-    const computedStyle = getComputedStyle(textarea);
-
-    // Create a hidden div to measure text wrapping
-    const measureDiv = document.createElement('div');
-    measureDiv.style.cssText = `
-      position: absolute;
-      visibility: hidden;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      width: ${textarea.clientWidth - parseFloat(computedStyle.paddingLeft) - parseFloat(computedStyle.paddingRight)}px;
-      font: ${computedStyle.font};
-      font-family: ${computedStyle.fontFamily};
-      font-size: ${computedStyle.fontSize};
-      line-height: ${computedStyle.lineHeight};
-    `;
-
-    // Append to the appropriate root (handles shadow DOM)
-    const rootNode = textarea.getRootNode();
-    const appendTarget = rootNode instanceof ShadowRoot
-      ? (rootNode.host.parentElement || document.body)
-      : document.body;
-    appendTarget.appendChild(measureDiv);
-
-    // Calculate cumulative Y position for each line
+  private calculateLinePositions(textarea: HTMLTextAreaElement, state: GutterState): number[] {
+    const lines = textarea.value.split('\n');
+    const style = getComputedStyle(textarea);
+    const layoutStyle = [style.font, style.lineHeight, style.letterSpacing, style.tabSize, style.paddingLeft, style.paddingRight, textarea.wrap].join('|');
+    if (state.cachedContent === textarea.value && state.cachedWidth === textarea.clientWidth && state.cachedStyle === layoutStyle) return state.cachedPositions;
+    const measure = document.createElement('div');
+    measure.style.cssText = `all:initial;position:absolute;visibility:hidden;pointer-events:none;white-space:${textarea.wrap === 'off' ? 'pre' : 'pre-wrap'};overflow-wrap:break-word;width:${Math.max(1, textarea.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0))}px;font:${style.font};line-height:${style.lineHeight};letter-spacing:${style.letterSpacing};tab-size:${style.tabSize};`;
+    const probe = document.createElement('span');
+    probe.style.display = 'block';
+    probe.textContent = ' ';
+    const measuredLines = lines.map(line => {
+      const element = document.createElement('span');
+      element.style.display = 'block';
+      element.textContent = line || ' ';
+      return element;
+    });
+    measure.append(probe, ...measuredLines);
+    const root = textarea.getRootNode();
+    // Use the same root so inherited and shadow-scoped fonts can resolve.
+    (root instanceof ShadowRoot ? root : document.body).appendChild(measure);
+    state.lineHeight = probe.offsetHeight || parseFloat(style.lineHeight) || 20;
     const positions: number[] = [];
-    let currentY = 0;
-
-    for (const line of lines) {
-      positions.push(currentY);
-      measureDiv.textContent = line || ' '; // Use space for empty lines
-      currentY += measureDiv.offsetHeight;
+    let y = 0;
+    for (const element of measuredLines) {
+      positions.push(y);
+      y += element.offsetHeight || state.lineHeight;
     }
-
-    appendTarget.removeChild(measureDiv);
+    measure.remove();
+    state.cachedContent = textarea.value;
+    state.cachedWidth = textarea.clientWidth;
+    state.cachedStyle = layoutStyle;
+    state.cachedPositions = positions;
     return positions;
   }
 
-  /**
-   * Render gutter markers for warnings
-   */
-  render(
-    gutter: HTMLElement,
-    textarea: HTMLTextAreaElement,
-    warnings: LintWarning[],
-    onFix?: (warning: LintWarning) => void
-  ): void {
-    gutter.innerHTML = '';
-    log(`Rendering ${warnings.length} warnings to gutter`);
-
-    if (warnings.length === 0) return;
-
+  render(gutter: HTMLElement, textarea: HTMLTextAreaElement, warnings: LintWarning[], onFix?: (warning: LintWarning) => void): void {
     const state = gutterStates.get(textarea);
     if (!state) return;
-
-    // Calculate actual visual positions accounting for text wrapping
-    const linePositions = this.calculateLinePositions(textarea, state.lineHeight);
-
+    state.warnings = warnings;
+    state.onFix = onFix;
+    state.source = textarea.value;
+    state.syncDimensions();
+    state.width = textarea.clientWidth;
+    const linePositions = this.calculateLinePositions(textarea, state);
+    state.warningLayer.replaceChildren();
     // Group warnings by line
     const lineWarnings = new Map<number, LintWarning[]>();
     for (const warning of warnings) {
@@ -176,6 +192,21 @@ export class GutterMarkers {
       lineWarnings.set(warning.line, lineList);
     }
 
+    // Attach markers together, after all geometry reads are complete.
+    const fragment = document.createDocumentFragment();
+    if (state.numberedPositions !== linePositions) {
+      const numbers = document.createDocumentFragment();
+      for (let index = 0; index < linePositions.length; index++) {
+        const number = document.createElement('span');
+        number.className = 'rumdl-line-number';
+        number.setAttribute('aria-hidden', 'true');
+        number.textContent = String(index + 1);
+        number.style.cssText = `position:absolute;left:16px;right:6px;top:${linePositions[index]}px;height:${state.lineHeight}px;line-height:${state.lineHeight}px;text-align:right;`;
+        numbers.appendChild(number);
+      }
+      state.numberLayer.replaceChildren(numbers);
+      state.numberedPositions = linePositions;
+    }
     // Create circle marker for each line with warnings
     for (const [line, lineWarningList] of lineWarnings) {
       const severity = this.getHighestSeverity(lineWarningList);
@@ -195,7 +226,7 @@ export class GutterMarkers {
         'aria-label',
         `Line ${line}: ${lineWarningList.length} lint issue${lineWarningList.length === 1 ? '' : 's'}. ${lineWarningList.map(warning => `${warning.rule_name}: ${warning.message}`).join(' ')}`
       );
-      // 8px circle, vertically centered on the line
+      // Marker column precedes the logical line number.
       marker.style.cssText = `
         position: absolute;
         width: 10px;
@@ -214,7 +245,7 @@ export class GutterMarkers {
       const lineY = linePositions[line - 1] ?? (line - 1) * state.lineHeight;
       const top = lineY + (state.lineHeight / 2) - 5;
       marker.style.top = `${top}px`;
-      marker.style.left = '0px';
+      marker.style.left = '1px';
 
       const showMarkerTooltip = () => {
         marker.style.opacity = '1';
@@ -228,7 +259,7 @@ export class GutterMarkers {
         marker.style.boxShadow = 'none';
         setTimeout(() => {
           const tooltip = document.querySelector('.rumdl-tooltip');
-          if (!marker.matches(':hover') && !marker.matches(':focus') && !tooltip?.contains(document.activeElement)) {
+          if (!marker.matches(':hover') && !marker.matches(':focus') && !tooltip?.contains(document.activeElement) && !tooltip?.matches(':hover')) {
             hideTooltip();
           }
         }, 100);
@@ -248,23 +279,25 @@ export class GutterMarkers {
         }
       });
 
-      gutter.appendChild(marker);
+      fragment.appendChild(marker);
+    }
+    state.warningLayer.appendChild(fragment);
+    state.scrollHandler();
+  }
+
+  /** Clear stale warnings while retaining line numbers, including the empty line. */
+  clear(gutter: HTMLElement): void {
+    for (const [textarea, state] of gutterStates) {
+      if (state.container === gutter) {
+        this.render(gutter, textarea, [], state.onFix);
+        return;
+      }
     }
   }
 
-  /**
-   * Clear all markers from a gutter
-   */
-  clear(gutter: HTMLElement): void {
-    gutter.innerHTML = '';
-  }
-
-  /**
-   * Get the highest severity from a list of warnings
-   */
   private getHighestSeverity(warnings: LintWarning[]): 'error' | 'warning' | 'info' {
-    if (warnings.some(w => w.severity === 'error')) return 'error';
-    if (warnings.some(w => w.severity === 'warning')) return 'warning';
+    if (warnings.some(warning => warning.severity === 'error')) return 'error';
+    if (warnings.some(warning => warning.severity === 'warning')) return 'warning';
     return 'info';
   }
 }

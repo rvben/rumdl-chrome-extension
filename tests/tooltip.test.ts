@@ -214,6 +214,22 @@ describe('tooltip', () => {
       expect(tooltip.style.opacity).toBe('0');
     });
 
+    it('uses dialog semantics for interactive fixes and restores focus on Escape', () => {
+      const marker = document.createElement('button');
+      document.body.append(marker);
+      marker.focus();
+      showWarningsTooltip([{ ...mockWarnings[0], fix: { range: { start: 0, end: 5 }, replacement: '# ' } }], 100, 100, vi.fn());
+      const tip = document.querySelector('.rumdl-tooltip') as HTMLElement;
+      expect(tip.getAttribute('role')).toBe('dialog');
+      expect(tip.inert).toBe(false);
+      const fix = tip.querySelector('button')!;
+      fix.focus();
+      fix.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(tip.inert).toBe(true);
+      expect(document.activeElement).toBe(marker);
+      marker.remove();
+    });
+
     it('makes tooltip interactive when onFix provided', () => {
       showWarningsTooltip(mockWarnings, 100, 100, vi.fn());
 

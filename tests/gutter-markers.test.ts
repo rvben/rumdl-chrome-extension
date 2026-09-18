@@ -34,6 +34,7 @@ describe('GutterMarkers', () => {
     Object.defineProperty(textarea, 'offsetTop', { value: 10, configurable: true });
     Object.defineProperty(textarea, 'offsetLeft', { value: 20, configurable: true });
     Object.defineProperty(textarea, 'offsetHeight', { value: 200, configurable: true });
+    Object.defineProperty(textarea, 'clientHeight', { value: 200, configurable: true });
     Object.defineProperty(textarea, 'clientWidth', { value: 400, configurable: true });
 
     parent.appendChild(textarea);
@@ -65,7 +66,7 @@ describe('GutterMarkers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
 
       expect(gutter.getAttribute('role')).toBe('group');
-      expect(gutter.getAttribute('aria-label')).toBe('rumdl lint markers');
+      expect(gutter.getAttribute('aria-label')).toBe('rumdl line numbers and lint markers');
     });
 
     it('sets parent position to relative if static', () => {
@@ -110,6 +111,25 @@ describe('GutterMarkers', () => {
       expect(gutter.parentElement).toBeNull();
     });
 
+    it('restores original padding and box sizing with their priorities', () => {
+      textarea.style.setProperty('padding-left', '15px', 'important');
+      textarea.style.setProperty('box-sizing', 'content-box');
+      gutterMarkers.createGutter(textarea);
+      expect(parseFloat(textarea.style.paddingLeft)).toBeGreaterThan(15);
+      gutterMarkers.removeGutter(textarea);
+      expect(textarea.style.paddingLeft).toBe('15px');
+      expect(textarea.style.getPropertyPriority('padding-left')).toBe('important');
+      expect(textarea.style.boxSizing).toBe('content-box');
+    });
+
+    it('restores the original parent even after an editor is detached', () => {
+      parent.style.position = 'static';
+      gutterMarkers.createGutter(textarea);
+      textarea.remove();
+      gutterMarkers.removeGutter(textarea);
+      expect(parent.style.position).toBe('static');
+    });
+
     it('handles removing non-existent gutter', () => {
       // Should not throw
       expect(() => gutterMarkers.removeGutter(textarea)).not.toThrow();
@@ -147,6 +167,15 @@ describe('GutterMarkers', () => {
       },
     ];
 
+    it('numbers clean logical lines and places markers before them', () => {
+      const gutter = gutterMarkers.createGutter(textarea);
+      expect([...gutter.querySelectorAll('.rumdl-line-number')].map(el => el.textContent)).toEqual(['1', '2', '3', '4', '5']);
+      gutterMarkers.render(gutter, textarea, mockWarnings);
+      const marker = gutter.querySelector<HTMLElement>('.rumdl-gutter-marker')!;
+      const number = gutter.querySelector<HTMLElement>('.rumdl-line-number')!;
+      expect(parseFloat(marker.style.left) + 10).toBeLessThan(parseFloat(number.style.left));
+    });
+
     it('renders markers for each line with warnings', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, mockWarnings);
@@ -155,11 +184,23 @@ describe('GutterMarkers', () => {
       expect(markers.length).toBe(3);
     });
 
-    it('renders nothing when no warnings', () => {
+    it('clips scrolling markers without moving the gutter viewport', () => {
+      const gutter = gutterMarkers.createGutter(textarea);
+      gutterMarkers.render(gutter, textarea, mockWarnings);
+      textarea.scrollTop = 40;
+      textarea.dispatchEvent(new Event('scroll'));
+      expect(gutter.style.overflow).toBe('hidden');
+      expect(gutter.style.transform).toBe('');
+      expect((gutter.firstElementChild as HTMLElement).style.transform).toBe('translateY(-40px)');
+      expect(gutter.querySelector<HTMLButtonElement>('.rumdl-gutter-marker')?.hidden).toBe(true);
+    });
+
+    it('retains line numbers without warning markers', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, []);
 
-      expect(gutter.innerHTML).toBe('');
+      expect(gutter.querySelectorAll('.rumdl-gutter-marker')).toHaveLength(0);
+      expect(gutter.querySelectorAll('.rumdl-line-number')).toHaveLength(5);
     });
 
     it('groups multiple warnings on same line into single marker', () => {
@@ -294,7 +335,8 @@ describe('GutterMarkers', () => {
 
       gutterMarkers.clear(gutter);
 
-      expect(gutter.innerHTML).toBe('');
+      expect(gutter.querySelectorAll('.rumdl-gutter-marker')).toHaveLength(0);
+      expect(gutter.querySelectorAll('.rumdl-line-number')).toHaveLength(5);
     });
   });
 

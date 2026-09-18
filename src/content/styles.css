@@ -1,60 +1,63 @@
 /* rumdl injected UI — native GitHub/GitLab surfaces with a single rumdl accent. */
 
-:where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip) {
-  --rumdl-fg: #1f2328;
-  --rumdl-fg-muted: #59636e;
-  --rumdl-fg-subtle: #59636e;
-  --rumdl-canvas: #ffffff;
-  --rumdl-canvas-subtle: #f6f8fa;
-  --rumdl-border: #d0d7de;
-  --rumdl-border-muted: #d8dee4;
+:where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip, .rumdl-gutter) {
+  --rumdl-fg: #181a1d;
+  --rumdl-fg-muted: #635d5c;
+  --rumdl-fg-subtle: #635d5c;
+  --rumdl-canvas: #fffdfb;
+  --rumdl-canvas-subtle: #f8f5f2;
+  --rumdl-border: #ded7d2;
+  --rumdl-border-muted: #ded7d2;
   --rumdl-neutral-hover: rgba(175, 184, 193, 0.24);
   --rumdl-danger: #cf222e;
   --rumdl-attention: #7d4e00;
-  --rumdl-accent: #8250df;
-  --rumdl-accent-strong: #6639ba;
-  --rumdl-success: #1a7f37;
-  --rumdl-success-strong: #1f883d;
-  --rumdl-focus: #0969da;
+  --rumdl-accent: #b92e35;
+  --rumdl-accent-strong: #8f2028;
+  --rumdl-success: #16734a;
+  --rumdl-success-strong: #16734a;
+  --rumdl-success-hover: #16734a;
+  --rumdl-focus: #b92e35;
   box-sizing: border-box;
 }
 
-:where([data-color-mode="dark"], [data-dark-theme="dark"], [data-theme="dark"], .gl-dark, .dark)
-  :where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip) {
-  --rumdl-fg: #e6edf3;
-  --rumdl-fg-muted: #a8b3bf;
-  --rumdl-fg-subtle: #9ba7b4;
-  --rumdl-canvas: #0d1117;
-  --rumdl-canvas-subtle: #161b22;
-  --rumdl-border: #30363d;
-  --rumdl-border-muted: #21262d;
+:where([data-color-mode="dark"], [data-theme="dark"], .gl-dark, .dark)
+  :where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip, .rumdl-gutter) {
+  --rumdl-fg: #f7f2f0;
+  --rumdl-fg-muted: #c7bdbb;
+  --rumdl-fg-subtle: #c7bdbb;
+  --rumdl-canvas: #1b181c;
+  --rumdl-canvas-subtle: #242024;
+  --rumdl-border: #514648;
+  --rumdl-border-muted: #2e282c;
   --rumdl-neutral-hover: rgba(110, 118, 129, 0.32);
   --rumdl-danger: #ff7b72;
-  --rumdl-attention: #e3b341;
-  --rumdl-accent: #a371f7;
-  --rumdl-accent-strong: #bc8cff;
-  --rumdl-success: #56d364;
-  --rumdl-success-strong: #2ea043;
-  --rumdl-focus: #58a6ff;
+  --rumdl-attention: #ffbf69;
+  --rumdl-accent: #ff8584;
+  --rumdl-accent-strong: #ff9d9a;
+  --rumdl-success: #6fe0a5;
+  --rumdl-success-strong: #238636;
+  --rumdl-success-hover: #196c2e;
+  --rumdl-focus: #ff8584;
 }
 
 @media (prefers-color-scheme: dark) {
-  :where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip) {
-    --rumdl-fg: #e6edf3;
-    --rumdl-fg-muted: #a8b3bf;
-    --rumdl-fg-subtle: #9ba7b4;
-    --rumdl-canvas: #0d1117;
-    --rumdl-canvas-subtle: #161b22;
-    --rumdl-border: #30363d;
-    --rumdl-border-muted: #21262d;
+  :root:not([data-color-mode="light"]):not([data-theme="light"]) :where(.rumdl-panel, .rumdl-status-btn, .rumdl-tooltip, .rumdl-gutter) {
+    --rumdl-fg: #f7f2f0;
+    --rumdl-fg-muted: #c7bdbb;
+    --rumdl-fg-subtle: #c7bdbb;
+    --rumdl-canvas: #1b181c;
+    --rumdl-canvas-subtle: #242024;
+    --rumdl-border: #514648;
+    --rumdl-border-muted: #2e282c;
     --rumdl-neutral-hover: rgba(110, 118, 129, 0.32);
     --rumdl-danger: #ff7b72;
-    --rumdl-attention: #e3b341;
-    --rumdl-accent: #a371f7;
-    --rumdl-accent-strong: #bc8cff;
-    --rumdl-success: #56d364;
-    --rumdl-success-strong: #2ea043;
-    --rumdl-focus: #58a6ff;
+    --rumdl-attention: #ffbf69;
+    --rumdl-accent: #ff8584;
+    --rumdl-accent-strong: #ff9d9a;
+    --rumdl-success: #6fe0a5;
+    --rumdl-success-strong: #238636;
+    --rumdl-success-hover: #196c2e;
+    --rumdl-focus: #ff8584;
   }
 }
 
@@ -69,7 +72,7 @@
   color: var(--rumdl-fg);
   background: var(--rumdl-canvas);
   border: 1px solid var(--rumdl-border);
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 8px 24px rgba(31, 35, 40, 0.18);
   opacity: 0;
   visibility: hidden;
@@ -97,7 +100,7 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 44px;
-  padding: 8px 10px 8px 12px;
+  padding: 10px 10px 10px 14px;
   background: var(--rumdl-canvas-subtle);
   border-bottom: 1px solid var(--rumdl-border-muted);
   user-select: none;
@@ -121,11 +124,8 @@
   font-weight: 600;
 }
 
-.rumdl-logo {
-  color: var(--rumdl-accent);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-weight: 700;
-}
+.rumdl-logo { display: inline-flex; align-items: center; color: var(--rumdl-fg); }
+.rumdl-logo svg { display: block; width: 70px; height: 17px; }
 
 .rumdl-count {
   display: inline-flex;
@@ -242,7 +242,7 @@
   border-color: var(--rumdl-success-strong);
 }
 
-.rumdl-btn-fix:hover:not(:disabled) { background: var(--rumdl-success); }
+.rumdl-btn-fix:hover:not(:disabled) { background: var(--rumdl-success-hover); border-color: var(--rumdl-success-hover); }
 
 .rumdl-btn-close {
   width: 30px;
@@ -257,7 +257,7 @@
 .rumdl-section:last-child { border-bottom: 0; }
 
 .rumdl-section-title {
-  padding: 9px 12px 4px;
+  padding: 12px 14px 5px;
   color: var(--rumdl-fg-muted);
   font-size: 11px;
   font-weight: 700;
@@ -286,7 +286,7 @@
 
 .rumdl-warning-jump {
   min-width: 0;
-  padding: 9px 1px;
+  padding: 11px 1px;
   color: inherit;
   background: transparent;
   border: 0;
@@ -333,7 +333,17 @@
 .rumdl-empty p { margin: 0; color: var(--rumdl-fg); font-size: 14px; font-weight: 600; }
 .rumdl-empty-subtitle { margin-top: 4px; color: var(--rumdl-fg-muted); font-size: 12px; }
 
+.rumdl-status-toolbar { flex-wrap: wrap !important; }
+
 .rumdl-status-btn {
+  display: inline-flex;
+  justify-content: center;
+  width: 140px;
+  max-width: calc(100% - 8px);
+  height: 30px;
+  box-sizing: border-box;
+  flex: 0 1 140px;
+  white-space: nowrap;
   gap: 5px;
   min-height: 30px;
   margin: 0 4px;
@@ -354,14 +364,19 @@
 .rumdl-status-btn.has-warnings { color: var(--rumdl-attention); }
 .rumdl-status-btn.has-error { color: var(--rumdl-danger); }
 .rumdl-status-btn.is-linting { color: var(--rumdl-accent); }
-.rumdl-status-btn svg { width: 16px; height: 16px; }
-.rumdl-status-count { font-variant-numeric: tabular-nums; font-weight: 700; }
-.rumdl-status-time { color: var(--rumdl-fg-subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rumdl-status-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.rumdl-status-count { min-width: 0; max-width: 4ch; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; text-align: left; font-variant-numeric: tabular-nums; font-weight: 700; }
+.rumdl-status-time { min-width: 0; flex: 0 0 auto; padding-left: 8px; border-left: 1px solid var(--rumdl-border); line-height: 16px; text-align: left; color: var(--rumdl-fg-subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.rumdl-status-time:empty { display: none; }
 
 .rumdl-tooltip {
   position: fixed;
   z-index: 100000;
   max-width: min(360px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  box-sizing: border-box;
   padding: 9px 11px;
   color: var(--rumdl-fg);
   background: var(--rumdl-canvas);
@@ -386,7 +401,8 @@
 .rumdl-tooltip-warning { margin-bottom: 7px; padding-bottom: 7px; border-bottom: 1px solid var(--rumdl-border-muted); }
 .rumdl-tooltip-warning:last-child { margin: 0; padding: 0; border-bottom: 0; }
 .rumdl-tooltip-fix { float: right; margin-left: 8px; }
-.rumdl-gutter { pointer-events: none; }
+.rumdl-gutter { pointer-events: none; color: var(--rumdl-fg-muted); border-right: 1px solid var(--rumdl-border); user-select: none; }
+.rumdl-line-number { font-variant-numeric: tabular-nums; }
 
 .rumdl-gutter-marker:focus-visible,
 .rumdl-warning-jump:focus-visible,
@@ -394,7 +410,7 @@
 .rumdl-status-btn:focus-visible,
 .rumdl-tooltip-fix:focus-visible,
 .rumdl-error-close:focus-visible {
-  outline: 2px solid var(--rumdl-focus, #0969da);
+  outline: 2px solid var(--rumdl-focus, #b92e35);
   outline-offset: 2px;
 }
 

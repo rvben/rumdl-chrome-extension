@@ -5,6 +5,7 @@ import type { LintWarning, LinterConfig } from '../shared/types.js';
 import { fix } from '../shared/messages.js';
 import { escapeHtml, escapeHtmlAttribute } from '../shared/html-utils.js';
 import { setTextareaValueIfUnchanged } from './textarea-utils.js';
+import { BRAND_LOGO } from '../shared/brand-logo.js';
 import { KeyboardShortcuts } from './keyboard-shortcuts.js';
 
 const DEBUG = false;
@@ -91,7 +92,7 @@ export class WarningPanel {
     this.panel.innerHTML = `
       <div class="rumdl-panel-header">
         <span class="rumdl-panel-title" id="${titleId}">
-          <span class="rumdl-logo">rumdl</span>
+          <span class="rumdl-logo" role="img" aria-label="rumdl">${BRAND_LOGO}</span>
           <span class="rumdl-count" aria-live="polite">0</span>
           <span class="rumdl-issues-label">issues</span>
           <span class="rumdl-lint-time" aria-live="polite"></span>
@@ -500,7 +501,7 @@ export class WarningPanel {
       top: ${top}px;
       left: ${left}px;
       width: ${panelWidth}px;
-      max-height: ${maxPanelHeight}px;
+      max-height: ${Math.min(maxPanelHeight, Math.max(0, viewportHeight - top - edge))}px;
     `;
   }
 

@@ -10,14 +10,11 @@
   <div class="popup">
     <header class="header">
       <div class="logo" aria-label="rumdl Markdown Linter">
-        <svg class="logo-mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
-          <path d="M8 6h12l4 4v16c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2z"
-                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M20 6v4h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle class="logo-check" cx="22" cy="22" r="6"/>
-          <path d="M19.5 22l1.5 1.5l3-3" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="logo-text">rumdl</span>
+        <picture>
+          <source srcset="logo-dark.svg" media="(prefers-color-scheme: dark)">
+          <img class="brand-logo" src="logo.svg" width="120" height="28" alt="rumdl">
+        </picture>
+        <span class="logo-caption">Markdown linter</span>
       </div>
       <span class="version" id="version" hidden></span>
     </header>
@@ -59,24 +56,27 @@
 
         <section class="tab-content active" id="tab-general" role="tabpanel"
                  aria-labelledby="tab-button-general">
-          <div class="form-group">
-            <label for="flavor" class="label">Markdown flavor</label>
-            <select id="flavor" class="select">
-              <option value="standard">Standard</option>
-              <option value="mkdocs">MkDocs</option>
-              <option value="mdx">MDX</option>
-              <option value="quarto">Quarto</option>
-              <option value="obsidian">Obsidian</option>
-            </select>
-            <span class="hint">Choose the Markdown variant used by your project.</span>
-          </div>
+          <div class="settings-grid">
+            <div class="form-group">
+              <label for="flavor" class="label">Markdown flavor</label>
+              <select id="flavor" class="select">
+                <option value="standard">Standard</option>
+                <option value="mkdocs">MkDocs</option>
+                <option value="mdx">MDX</option>
+                <option value="quarto">Quarto</option>
+                <option value="obsidian">Obsidian</option>
+              </select>
+              <span class="hint">Match your project’s Markdown.</span>
+            </div>
 
-          <div class="form-group">
-            <label for="lineLength" class="label">Line length</label>
-            <input type="number" id="lineLength" class="input" min="40" max="500" step="1"
-                   inputmode="numeric" aria-describedby="lineLengthHint lineLengthError">
-            <span class="hint" id="lineLengthHint">Maximum characters per line, from 40 to 500.</span>
-            <span class="field-error" id="lineLengthError" aria-live="polite"></span>
+            <div class="form-group">
+              <label for="lineLength" class="label">Line length</label>
+              <input type="number" id="lineLength" class="input" min="40" max="500" step="1"
+                     inputmode="numeric" aria-describedby="lineLengthHint lineLengthError">
+              <span class="hint" id="lineLengthHint">40–500 characters per line.</span>
+              <span class="field-error" id="lineLengthError" aria-live="polite"></span>
+            </div>
+
           </div>
 
           <fieldset class="form-group fieldset-reset">
@@ -98,7 +98,7 @@
             <div class="checkbox-group">
               <label class="checkbox-label">
                 <input type="checkbox" id="showGutterIcons">
-                <span>Show warning markers beside the editor</span>
+                <span>Show line numbers and warning markers</span>
               </label>
             </div>
           </fieldset>

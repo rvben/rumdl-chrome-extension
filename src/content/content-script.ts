@@ -401,7 +401,7 @@ function cleanupEditor(textarea: HTMLTextAreaElement): void {
 
   // Remove UI elements
   state.panel.destroy();
-  state.button?.remove();
+  removeLintButton(state.button);
   gutterMarkers.removeGutter(textarea);
 
   // Unregister shortcuts
@@ -543,6 +543,8 @@ async function performLint(textarea: HTMLTextAreaElement): Promise<void> {
         performLint(textarea);
         return;
       }
+      textarea.focus();
+      textarea.setSelectionRange(start + replacement.length, start + replacement.length);
       // Re-lint immediately (bypass debounce)
       if (state.debounceTimer) {
         clearTimeout(state.debounceTimer);
@@ -746,6 +748,22 @@ function getToolbarSelectors(): string {
   }
 }
 
+const statusToolbars = new WeakMap<Element, { users: number; hadClass: boolean }>();
+const buttonToolbars = new WeakMap<HTMLElement, Element>();
+
+function removeLintButton(button: HTMLElement | null): void {
+  if (!button) return;
+  const toolbar = buttonToolbars.get(button);
+  button.remove();
+  if (!toolbar) return;
+  const state = statusToolbars.get(toolbar);
+  if (state && --state.users === 0) {
+    if (!state.hadClass) toolbar.classList.remove('rumdl-status-toolbar');
+    statusToolbars.delete(toolbar);
+  }
+  buttonToolbars.delete(button);
+}
+
 /**
  * Create a lint status button near the textarea
  */
@@ -796,6 +814,12 @@ function createLintButton(textarea: HTMLTextAreaElement): HTMLElement | null {
       }
     }
   });
+
+  const toolbarState = statusToolbars.get(toolbar) || { users: 0, hadClass: toolbar.classList.contains('rumdl-status-toolbar') };
+  toolbarState.users++;
+  statusToolbars.set(toolbar, toolbarState);
+  buttonToolbars.set(button, toolbar);
+  toolbar.classList.add('rumdl-status-toolbar');
 
   if (toolbar.classList.contains('form-actions') || toolbar.classList.contains('d-flex')) {
     toolbar.insertBefore(button, toolbar.firstChild);
