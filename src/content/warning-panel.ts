@@ -1,5 +1,6 @@
 // Warning Panel - sidebar showing all lint warnings
 
+import { characterOffsetToUtf16 } from '../shared/text-offsets.js';
 import type { LintWarning, LinterConfig } from '../shared/types.js';
 import { fix } from '../shared/messages.js';
 import { escapeHtml, escapeHtmlAttribute } from '../shared/html-utils.js';
@@ -350,7 +351,7 @@ export class WarningPanel {
     for (let i = 0; i < warning.line - 1 && i < lines.length; i++) {
       pos += lines[i].length + 1; // +1 for newline
     }
-    pos += warning.column - 1;
+    pos += characterOffsetToUtf16(lines[warning.line - 1] || '', warning.column - 1);
 
     // Set selection and focus
     this.textarea.focus();

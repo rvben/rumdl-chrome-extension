@@ -1,6 +1,7 @@
 // Content script for rumdl GitHub extension
 // Manages editor detection, linting, and status UI
 
+import { characterOffsetToUtf16 } from '../shared/text-offsets.js';
 import { EditorManager } from './editor-manager.js';
 import { WarningPanel } from './warning-panel.js';
 import { KeyboardShortcuts, ShortcutAction } from './keyboard-shortcuts.js';
@@ -663,7 +664,7 @@ function jumpToWarning(textarea: HTMLTextAreaElement, warning: LintWarning): voi
   for (let i = 0; i < warning.line - 1 && i < lines.length; i++) {
     pos += lines[i].length + 1;
   }
-  pos += warning.column - 1;
+  pos += characterOffsetToUtf16(lines[warning.line - 1] || '', warning.column - 1);
 
   textarea.focus();
   textarea.setSelectionRange(pos, pos);

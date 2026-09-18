@@ -1,5 +1,6 @@
 // Message passing utilities for extension communication
 
+import { normalizeFixRanges } from './text-offsets.js';
 import type { MessageType, MessageResponse, LintWarning, LinterConfig, RumdlConfig, RuleInfo, ServiceWorkerStatus } from './types.js';
 
 // Send a message to the service worker and wait for response
@@ -24,7 +25,7 @@ export interface LintResult {
 export async function lint(content: string, config: LinterConfig): Promise<LintResult> {
   const response = await sendMessage({ type: 'LINT', content, config });
   if (response.type === 'LINT_RESULT') {
-    return { warnings: response.warnings, lintTimeMs: response.lintTimeMs };
+    return { warnings: normalizeFixRanges(content, response.warnings), lintTimeMs: response.lintTimeMs };
   } else if (response.type === 'ERROR') {
     throw new Error(response.message);
   }
