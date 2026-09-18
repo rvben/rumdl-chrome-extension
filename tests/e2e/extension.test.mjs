@@ -215,9 +215,12 @@ async function testPopupKeyboardAndRules() {
   await page.locator('#settingsShell').waitFor({ state: 'visible' });
   await page.locator('.brand-logo').evaluate(img => img.decode());
   await page.emulateMedia({ colorScheme: 'dark' });
+  await page.waitForFunction(() => document.querySelector('.brand-logo').currentSrc.endsWith('/logo-dark.svg'));
   await page.locator('.brand-logo').evaluate(img => img.decode());
   assert.match(await page.locator('.brand-logo').evaluate(img => img.currentSrc), /logo-dark\.svg$/);
   await page.emulateMedia({ colorScheme: 'light' });
+  await page.waitForFunction(() => document.querySelector('.brand-logo').currentSrc.endsWith('/logo.svg'));
+  await page.locator('.brand-logo').evaluate(img => img.decode());
   await generalTab.focus();
   await generalTab.press('ArrowRight');
   assert.equal(await rulesTab.getAttribute('aria-selected'), 'true');
