@@ -78,13 +78,15 @@ export class GutterMarkers {
       container.style.cssText = `position:absolute;top:${textarea.offsetTop + textarea.clientTop + paddingTop}px;left:${textarea.offsetLeft + textarea.clientLeft + 2}px;width:${railWidth}px;height:${Math.max(0, textarea.clientHeight - paddingTop - (parseFloat(style.paddingBottom) || 0))}px;pointer-events:none;overflow:hidden;z-index:10;font-family:${style.fontFamily};font-size:12px;`;
     };
     const scrollHandler = () => {
-      markerLayer.style.transform = `translateY(-${textarea.scrollTop}px)`;
+      // Read geometry before changing marker visibility to avoid per-marker layouts.
+      const scrollTop = textarea.scrollTop;
+      markerLayer.style.transform = `translateY(-${scrollTop}px)`;
       const state = gutterStates.get(textarea);
       const style = getComputedStyle(textarea);
       const visibleHeight = Math.max(0, textarea.clientHeight - (state?.paddingTop || 0) - (parseFloat(style.paddingBottom) || 0));
       for (const marker of markerLayer.querySelectorAll<HTMLButtonElement>('.rumdl-gutter-marker')) {
         const top = parseFloat(marker.style.top);
-        marker.hidden = top + 10 <= textarea.scrollTop || top >= textarea.scrollTop + visibleHeight;
+        marker.hidden = top + 10 <= scrollTop || top >= scrollTop + visibleHeight;
       }
     };
     const inputHandler = () => {

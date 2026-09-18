@@ -216,6 +216,19 @@ describe('GutterMarkers', () => {
       expect(markers.length).toBe(1);
     });
 
+    it('reads scroll geometry once per batch when clipping a long warning list', () => {
+      textarea.value = Array.from({ length: 100 }, () => 'Warning line').join('\n');
+      const gutter = gutterMarkers.createGutter(textarea);
+      const scrollPosition = vi.fn(() => 0);
+      Object.defineProperty(textarea, 'scrollTop', { get: scrollPosition, configurable: true });
+      gutterMarkers.render(gutter, textarea, Array.from({ length: 100 }, (_, index) => ({ ...mockWarnings[0], line: index + 1 })));
+      expect(scrollPosition).toHaveBeenCalledTimes(1);
+      expect(gutter.querySelectorAll('.rumdl-gutter-marker[hidden]').length).toBeGreaterThanOrEqual(90);
+      scrollPosition.mockClear();
+      textarea.dispatchEvent(new Event('scroll'));
+      expect(scrollPosition).toHaveBeenCalledTimes(1);
+    });
+
     it('uses error color for error severity', () => {
       const gutter = gutterMarkers.createGutter(textarea);
       gutterMarkers.render(gutter, textarea, [mockWarnings[0]]);
