@@ -32,27 +32,17 @@ const CONFIG = {
   reflow: false,
 };
 
-const SAMPLE_MARKDOWN = `# Bug report
+const SAMPLE_MARKDOWN = `# Release notes
 
-## Steps to reproduce
+## Improvements
 
-Open the settings panel and click save.
-The configuration is not persisted.
+- Clearer Markdown feedback
+-  Warnings beside the relevant line
+- Settings saved automatically\u0020\u0020\u0020
 
-## Expected behavior
+## Next steps
 
-Settings should be saved automatically.
-
-## Actual behavior
-
-This intentionally long line exceeds the configured line length so the real rumdl WebAssembly linter produces a useful warning for visual review.
-
--  Step one
--   Step two
-
-## Fix suggestion
-
-Use localStorage to persist settings.
+Review the changes before publishing.
 `;
 
 let context;
@@ -84,9 +74,11 @@ async function captureScreenshots() {
   server = await startServer();
 
   context = await chromium.launchPersistentContext(join(extensionPath, 'profile'), {
-    channel: 'chromium',
+    ...(process.env.SCREENSHOT_CHROMIUM_EXECUTABLE
+      ? { executablePath: process.env.SCREENSHOT_CHROMIUM_EXECUTABLE }
+      : { channel: 'chromium' }),
     headless: process.env.HEADED !== '1',
-    viewport: { width: 1280, height: 800 },
+    viewport: { width: 720, height: 560 },
     colorScheme: screenshotColorScheme,
     args: [
       `--disable-extensions-except=${extensionPath}`,
@@ -105,8 +97,24 @@ async function captureScreenshots() {
   const editorPage = await context.newPage();
   await editorPage.goto(`${server.url}/github-mock.html`, { waitUntil: 'domcontentloaded' });
   await editorPage.locator('textarea[data-rumdl-managed="true"]').waitFor();
+  await editorPage.evaluate(theme => document.documentElement.setAttribute('data-color-mode', theme), screenshotColorScheme);
+  await editorPage.addStyleTag({ content: `
+    body { margin: 28px; }
+    textarea.comment-form-textarea { box-sizing: border-box; min-height: 350px; line-height: 21px; }
+    [role="toolbar"] > button:not(.rumdl-status-btn), .form-actions > button {
+      border: 1px solid #d0d7de; border-radius: 6px; padding: 5px 10px;
+    }
+    html[data-color-mode="dark"] body { background: #0d1117; color: #e6edf3; }
+    html[data-color-mode="dark"] textarea { background: #0d1117; color: #e6edf3; border-color: #30363d; }
+    html[data-color-mode="dark"] [role="toolbar"] { background: #161b22; border-color: #30363d; }
+    html[data-color-mode="dark"] [role="toolbar"] > button:not(.rumdl-status-btn),
+    html[data-color-mode="dark"] .form-actions > button { background: #21262d; color: #e6edf3; border-color: #30363d; }
+  ` });
+
   await editorPage.locator('textarea').fill(SAMPLE_MARKDOWN);
+  await editorPage.locator('.rumdl-status-btn.has-warnings:not([aria-busy])').waitFor();
   await editorPage.locator('.rumdl-gutter > *').first().waitFor();
+  await editorPage.evaluate(() => document.fonts.ready);
 
   await editorPage.screenshot({
     path: screenshotPath('02-gutter-dots.png'),
@@ -121,7 +129,7 @@ async function captureScreenshots() {
   });
 
   const popupPage = await context.newPage();
-  await popupPage.setViewportSize({ width: 380, height: 560 });
+  await popupPage.setViewportSize({ width: 400, height: 600 });
   await popupPage.goto(`chrome-extension://${extensionId}/popup/popup.html`);
   await serviceWorker.evaluate(async editorUrl => {
     const tabs = await chrome.tabs.query({});
@@ -141,6 +149,8 @@ async function captureScreenshots() {
     document.querySelector('#pageReadinessDescription').textContent = '1 Markdown editor detected.';
   });
   await popupPage.locator('#pageReadiness[data-tone="ready"]').waitFor({ state: 'attached' });
+  await popupPage.locator('.brand-logo').evaluate(image => image.decode());
+  await popupPage.evaluate(() => document.fonts.ready);
   await popupPage.screenshot({
     path: screenshotPath('03-popup-general.png'),
     fullPage: true,

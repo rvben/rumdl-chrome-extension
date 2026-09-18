@@ -2,6 +2,17 @@
 
 A Chrome extension that provides real-time Markdown linting for GitHub and GitLab using [rumdl](https://github.com/rvben/rumdl), a fast Rust-based Markdown linter.
 
+## Screenshots
+
+Line numbers, warning markers, and quick fixes beside your Markdown in dark mode.
+The interface follows the active GitHub or GitLab theme.
+
+![rumdl editor with numbered lines, warning markers, and a quick-fix panel in dark mode](docs/images/editor-dark.png)
+
+Configure Markdown flavors, line length, and editor feedback. Settings save automatically.
+
+![rumdl General settings in light mode](docs/images/settings-light.png)
+
 ## Features
 
 - **Real-time linting**: Lint your markdown as you type in issue descriptions, PR descriptions, comments, and more
@@ -174,13 +185,23 @@ These tests cover UI and linter behavior before installation. `npm run test:e2e`
 remains necessary to verify Chrome permissions, isolated content scripts,
 service-worker lifecycle, and actual extension messaging.
 
-The latest visual and behavioral assessment is available as an
-[HTML before/after report](reports/extension-before-after.html). To preserve an
-existing screenshot baseline while capturing a new comparison set, run:
+To refresh the published screenshots from the current build, capture both themes
+before rendering the store images:
 
 ```bash
-SCREENSHOT_PREFIX=after- npm run screenshots
+npm run build
+SCREENSHOT_COLOR_SCHEME=light SCREENSHOT_PREFIX=light- npm run screenshots
+SCREENSHOT_COLOR_SCHEME=dark SCREENSHOT_PREFIX=dark- npm run screenshots
+npm run screenshots:store
+cp store/screenshots/dark-01-warning-panel.png docs/images/editor-dark.png
+cp store/screenshots/light-03-popup-general.png docs/images/settings-light.png
 ```
+
+The store renderer produces five 1280 × 800 images in `store/listing-screenshots/`
+using the same logo assets as the extension. The editor captures use local
+GitHub-style fixtures with the real extension and linter in a disposable browser
+profile. Upload listing images through the Chrome Web Store Developer Dashboard;
+the release workflow uploads the extension package, not listing images.
 
 Tagged releases can also upload and submit the verified package to the Chrome
 Web Store using short-lived GitHub OIDC credentials. See the
