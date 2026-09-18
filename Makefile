@@ -1,4 +1,4 @@
-.PHONY: all build clean typecheck lint test test-unit test-e2e test-smoke test-coverage install package watch check ci check-size
+.PHONY: all build clean typecheck lint test test-unit test-e2e test-browser preview test-smoke test-coverage install package watch check ci check-size
 
 # Default target
 all: build
@@ -29,6 +29,14 @@ test-unit:
 # Run tests with coverage
 test-coverage:
 	npm run test:coverage
+
+# Test production UI and WASM in an ordinary browser
+test-browser:
+	npm run test:browser
+
+# Preview the popup and editor fixtures without installing the extension
+preview:
+	npm run preview
 
 # Run E2E tests (requires Playwright Chromium)
 test-e2e:

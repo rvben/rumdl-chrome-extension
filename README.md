@@ -145,6 +145,8 @@ make build          # Build the extension
 make lint           # TypeScript type checking
 make test-unit      # Run the unit test suite
 make test-e2e        # Build and test the loaded extension in Chromium
+npm run preview      # Standalone popup/editor preview; no extension installation
+npm run test:browser # Real WASM + browser interactions + accessibility audits
 npm run screenshots  # Capture real-extension popup and editor UI states
 npm run screenshots:store # Render 1280x800 Chrome Web Store listing images
 make test           # Lint + unit tests
@@ -154,6 +156,23 @@ make ci             # Full CI pipeline (install + check + package)
 make check-size     # Verify extension size is under Chrome Web Store limit
 make watch          # Development watch mode
 ```
+
+For UI development before loading the extension, run `npm run preview` and open
+`http://127.0.0.1:4173`. The editor fixtures are available at
+`/tests/e2e/fixtures/github-mock.html` and `/tests/e2e/fixtures/gitlab-mock.html`.
+The local preview uses the production popup, content bundle, service-worker
+handlers, and WebAssembly linter. A test-only bridge replaces Chrome messaging
+and synchronized storage with in-page transport and local storage.
+
+Run `npm run test:browser` for keyboard navigation, rule search, saving and failure
+recovery, import/export, real linting and fixes, theme and viewport checks, and
+WCAG accessibility audits. Install Chromium once with `npx playwright install chromium`
+if it is unavailable. Screenshots are written to a temporary directory, outside
+the repository. The bridge is never included in the extension package.
+
+These tests cover UI and linter behavior before installation. `npm run test:e2e`
+remains necessary to verify Chrome permissions, isolated content scripts,
+service-worker lifecycle, and actual extension messaging.
 
 The latest visual and behavioral assessment is available as an
 [HTML before/after report](reports/extension-before-after.html). To preserve an

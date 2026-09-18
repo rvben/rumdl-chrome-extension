@@ -30,7 +30,10 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium --with-deps
 
-      - name: Browser tests
+      - name: Standalone UI and accessibility tests
+        run: make test-browser
+
+      - name: Extension browser tests
         run: make test-e2e
 
       - name: Build
