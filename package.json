@@ -20,7 +20,7 @@
     "preview": "npm run build && node tests/browser/server.mjs"
   },
   "dependencies": {
-    "rumdl-wasm": "0.2.79"
+    "rumdl-wasm": "0.3.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
