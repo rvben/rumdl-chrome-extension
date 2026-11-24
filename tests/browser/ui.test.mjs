@@ -7,7 +7,10 @@ import AxeBuilder from '@axe-core/playwright';
 import { startPreview } from './server.mjs';
 
 const preview = await startPreview();
-const browser = await chromium.launch(); // Ordinary browser: no extension flags or profile.
+// Ordinary browser: no extension flags or profile. The bridge runs the service worker on the
+// page's main thread, where Chromium refuses to synchronously compile a WASM module over 8 MB;
+// a real service worker has no such limit.
+const browser = await chromium.launch({ args: ['--enable-features=WebAssemblyUnlimitedSyncCompilation'] });
 const captures = await mkdtemp(join(tmpdir(), 'rumdl-ui-'));
 let passed = 0;
 async function test(name, run) {
